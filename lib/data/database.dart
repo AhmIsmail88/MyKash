@@ -122,6 +122,8 @@ class Sales extends Table with SyncColumns {
   IntColumn get paid => integer().withDefault(const Constant(0))();
   TextColumn get status => text().withDefault(const Constant('completed'))();
   TextColumn get userId => text().nullable()();
+  /// الوردية اللي الفاتورة اتعملت فيها (null للفواتير القديمة).
+  TextColumn get shiftId => text().nullable()();
 }
 
 class SaleLines extends Table with SyncColumns {
@@ -180,6 +182,27 @@ class AuditLogs extends Table with SyncColumns {
   TextColumn get details => text().nullable()();
 }
 
+/// وردية الكاشير: من فتح الدرج حتى تقفيله.
+///
+/// وردية واحدة مفتوحة لكل جهاز. المبيعات بتتربط بيها عشان كل تقرير
+/// يخص الوردية يبقى دقيق، والفرق بين النقد المتوقع والمعدود يبقى موثّق.
+class Shifts extends Table with SyncColumns {
+  TextColumn get number => text()();
+  TextColumn get userId => text()();
+  IntColumn get openedAt => integer()();
+  IntColumn get closedAt => integer().nullable()();
+  /// النقدية الافتتاحية في الدرج (أجزاء من 100).
+  IntColumn get openingCash => integer().withDefault(const Constant(0))();
+  /// المحسوب لحظة التقفيل: افتتاحي + كاش + دفعات - مرتجعات - مدفوعات.
+  IntColumn get expectedCash => integer().nullable()();
+  /// المعدود فعليًا بواسطة الكاشير.
+  IntColumn get countedCash => integer().nullable()();
+  /// المعدود - المتوقع. سالب يعني عجز.
+  IntColumn get difference => integer().nullable()();
+  TextColumn get note => text().nullable()();
+  TextColumn get status => text().withDefault(const Constant('open'))();
+}
+
 class SaleReturns extends Table with SyncColumns {
   TextColumn get saleId => text()();
   TextColumn get saleLineId => text()();
@@ -226,6 +249,31 @@ class SaleRow {
   final int soldAt, total, paid;
   const SaleRow(this.id, this.number, this.type, this.status, this.customerName,
       this.soldAt, this.total, this.paid);
+}
+
+/// ملخّص وردية: الأرقام اللي بيتبني عليها تقرير X (أثناء الوردية) و Z (بعد التقفيل).
+class ShiftSummary {
+  final Shift shift;
+  final int cashSales, creditSales, salesCount;
+  final int cashReturns, cashPaymentsIn, cashPaymentsOut;
+
+  const ShiftSummary({
+    required this.shift,
+    required this.cashSales,
+    required this.creditSales,
+    required this.salesCount,
+    required this.cashReturns,
+    required this.cashPaymentsIn,
+    required this.cashPaymentsOut,
+  });
+
+  /// المتوقع في الدرج: افتتاحي + كاش + دفعات داخلة − مرتجعات − مدفوعات خارجة.
+  int get expectedCash =>
+      shift.openingCash + cashSales + cashPaymentsIn - cashReturns - cashPaymentsOut;
+
+  /// المعدود − المتوقع. null قبل التقفيل.
+  int? get difference =>
+      shift.countedCash == null ? null : shift.countedCash! - expectedCash;
 }
 
 class SaleDetailLine {
@@ -365,6 +413,7 @@ class InvoiceData {
   Devices,
   AuditLogs,
   SaleReturns,
+  Shifts,
 ])
 class AppDatabase extends _$AppDatabase {
   AppDatabase()
@@ -375,7 +424,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.e);
 
   /// يُستخدم أيضًا للتحقق من النسخ الاحتياطية قبل الاستعادة.
-  static const int currentSchema = 4;
+  static const int currentSchema = 5;
 
   @override
   int get schemaVersion => currentSchema;
@@ -396,6 +445,10 @@ class AppDatabase extends _$AppDatabase {
           if (from < 4) {
             await m.addColumn(devices, devices.prefix);
             await _createSyncInfra(backfill: true);
+          }
+          if (from < 5) {
+            await m.createTable(shifts);
+            await m.addColumn(sales, sales.shiftId);
           }
         },
       );
@@ -609,11 +662,13 @@ ORDER BY c.name
       final saleId = newId();
       final now = nowMs();
       final paid = credit ? paidNow : total;
+      final openShift = await currentShift();
 
       await into(sales).insert(SalesCompanion.insert(
         id: Value(saleId),
         number: number,
         type: credit ? 'credit' : 'cash',
+        shiftId: Value(openShift?.id),
         customerId: Value(customerId),
         soldAt: now,
         subtotal: subtotal,
@@ -696,8 +751,169 @@ LIMIT 300
         .toList());
   }
 
-  Future<List<SaleDetailLine>> saleLinesFor(String saleId) async {
-    final rows = await customSelect(
+  // ---------- الوردية ----------
+
+  /// أحدث وردية مفتوحة على الجهاز، أو null لو مفيش.
+  Future<Shift?> currentShift() =>
+      (select(shifts)
+            ..where((s) => s.status.equals('open'))
+            ..orderBy([(s) => OrderingTerm.desc(s.openedAt)])
+            ..limit(1))
+          .getSingleOrNull();
+
+  /// متابعة الوردية المفتوحة لحظيًا.
+  Stream<Shift?> watchCurrentShift() =>
+      (select(shifts)..where((s) => s.status.equals('open')))
+          .watchSingleOrNull();
+
+  Future<String> _nextShiftNumber() async {
+    final row = await (select(counters)..where((c) => c.name.equals('shift')))
+        .getSingleOrNull();
+    final next = (row?.value ?? 0) + 1;
+    await into(counters).insertOnConflictUpdate(
+      CountersCompanion.insert(name: 'shift', value: next),
+    );
+    return 'S-${next.toString().padLeft(4, '0')}';
+  }
+
+  /// فتح وردية جديدة. بترفض لو فيه وردية مفتوحة بالفعل.
+  Future<Shift> openShift({
+    required String userId,
+    required int openingCash,
+  }) {
+    return transaction(() async {
+      final open = await currentShift();
+      if (open != null) {
+        throw StateError(
+            'فيه وردية مفتوحة بالفعل (${open.number}). اقفلها الأول.');
+      }
+      final id = newId();
+      final number = await _nextShiftNumber();
+      await into(shifts).insert(ShiftsCompanion.insert(
+        id: Value(id),
+        number: number,
+        userId: userId,
+        openedAt: nowMs(),
+        openingCash: Value(openingCash),
+      ));
+      await logAudit('shift_open',
+          userId: userId, refId: id, details: '$number: $openingCash');
+      return await (select(shifts)..where((s) => s.id.equals(id))).getSingle();
+    });
+  }
+
+  /// ملخّص الوردية من الأرقام الفعلية.
+  Future<ShiftSummary> shiftSummary(String shiftId) async {
+    final shift =
+        await (select(shifts)..where((s) => s.id.equals(shiftId))).getSingle();
+
+    final totals = await customSelect(
+      '''
+SELECT
+  COALESCE(SUM(CASE WHEN type = 'cash' THEN total ELSE 0 END), 0) AS cash_total,
+  COALESCE(SUM(CASE WHEN type = 'credit' THEN total ELSE 0 END), 0) AS credit_total,
+  COUNT(*) AS cnt
+FROM sales
+WHERE shift_id = ?1 AND status = 'completed' AND is_deleted = 0
+''',
+      variables: [Variable.withString(shiftId)],
+      readsFrom: {sales},
+    ).getSingle();
+
+    final returns = await customSelect(
+      '''
+SELECT COALESCE(SUM(r.refund_amount), 0) AS v
+FROM sale_returns r JOIN sales s ON s.id = r.sale_id
+WHERE s.shift_id = ?1 AND s.type = 'cash' AND s.status = 'completed'
+  AND s.is_deleted = 0 AND r.is_deleted = 0
+''',
+      variables: [Variable.withString(shiftId)],
+      readsFrom: {saleReturns, sales},
+    ).getSingle();
+
+    // الدفعات مالهاش shift_id، فبنحددها بنافذة الوردية الزمنية.
+    final windowEnd = shift.closedAt ?? nowMs();
+    final movement = await customSelect(
+      '''
+SELECT
+  COALESCE(SUM(CASE WHEN direction = 'in' THEN amount ELSE 0 END), 0) AS pin,
+  COALESCE(SUM(CASE WHEN direction = 'out' THEN amount ELSE 0 END), 0) AS pout
+FROM payments
+WHERE method = 'cash' AND is_deleted = 0
+  AND paid_at >= ?1 AND paid_at <= ?2
+''',
+      variables: [Variable.withInt(shift.openedAt), Variable.withInt(windowEnd)],
+      readsFrom: {payments},
+    ).getSingle();
+
+    return ShiftSummary(
+      shift: shift,
+      cashSales: totals.read<int>('cash_total'),
+      creditSales: totals.read<int>('credit_total'),
+      salesCount: totals.read<int>('cnt'),
+      cashReturns: returns.read<int>('v'),
+      cashPaymentsIn: movement.read<int>('pin'),
+      cashPaymentsOut: movement.read<int>('pout'),
+    );
+  }
+
+  /// تقفيل الوردية بمبلغ معدود فعليًا.
+  Future<ShiftSummary> closeShift({
+    required String shiftId,
+    required int countedCash,
+    String? note,
+  }) {
+    return transaction(() async {
+      final shift = await (select(shifts)..where((s) => s.id.equals(shiftId)))
+          .getSingle();
+      if (shift.status != 'open') {
+        throw StateError('الوردية مقفولة بالفعل.');
+      }
+      final summary = await shiftSummary(shiftId);
+      final expected = summary.expectedCash;
+      await (update(shifts)..where((s) => s.id.equals(shiftId))).write(
+        ShiftsCompanion(
+          closedAt: Value(nowMs()),
+          expectedCash: Value(expected),
+          countedCash: Value(countedCash),
+          difference: Value(countedCash - expected),
+          note: Value(note),
+          status: const Value('closed'),
+        ),
+      );
+      await logAudit('shift_close',
+          refId: shiftId, details: '${shift.number}: $expected / $countedCash');
+      return await shiftSummary(shiftId);
+    });
+  }
+
+  /// فواتير وردية معيّنة.
+  Stream<List<SaleRow>> watchShiftSales(String shiftId) {
+    return customSelect(
+      '''
+SELECT s.id, s.number, s.type, s.status, s.sold_at, s.total, s.paid,
+       c.name AS customer_name
+FROM sales s LEFT JOIN customers c ON c.id = s.customer_id
+WHERE s.is_deleted = 0 AND s.shift_id = ?1
+ORDER BY s.sold_at DESC
+''',
+      variables: [Variable.withString(shiftId)],
+      readsFrom: {sales, customers},
+    ).watch().map((rows) => rows
+        .map((r) => SaleRow(
+              r.read<String>('id'),
+              r.read<String>('number'),
+              r.read<String>('type'),
+              r.read<String>('status'),
+              r.readNullable<String>('customer_name'),
+              r.read<int>('sold_at'),
+              r.read<int>('total'),
+              r.read<int>('paid'),
+            ))
+        .toList());
+  }
+
+  Future<List<SaleDetailLine>> saleLinesFor(String saleId) async {    final rows = await customSelect(
       '''
 SELECT l.id AS line_id, l.item_id, i.name AS name,
        COALESCE(u.name, '') AS unit_name, l.qty_milli, l.unit_price,

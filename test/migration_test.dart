@@ -9,17 +9,22 @@ import 'generated/schema.dart';
 
 /// Guards the schema against accidental breakage.
 ///
-/// `drift_schemas/drift_schema_v4.json` is the reference snapshot of the
-/// current schema. Every future change must bump `currentSchema`, add an
-/// additive `onUpgrade` step and dump a new snapshot; these tests then prove
-/// that a migrated database still matches the declared schema.
+/// Every change must bump `currentSchema`, add an additive `onUpgrade` step and
+/// freeze a new snapshot in `drift_schemas/`. See docs/DB_MIGRATIONS.md.
 void main() {
   final verifier = SchemaVerifier(GeneratedHelper());
 
-  test('migration reproduces the dumped v4 schema', () async {
+  test('a fresh database matches the current schema snapshot', () async {
+    final connection = await verifier.startAt(currentSchemaForTests);
+    final db = AppDatabase.forTesting(connection);
+    await verifier.migrateAndValidate(db, currentSchemaForTests);
+    await db.close();
+  });
+
+  test('upgrade from v4 to v5 keeps the declared schema', () async {
     final connection = await verifier.startAt(4);
     final db = AppDatabase.forTesting(connection);
-    await verifier.migrateAndValidate(db, 4);
+    await verifier.migrateAndValidate(db, 5);
     await db.close();
   });
 
@@ -44,10 +49,10 @@ void main() {
 
     var db = AppDatabase.forTesting(NativeDatabase(file));
     await db.initDevice(isMobile: false);
-    await db.addItem(
-        name: 'Persisted', salePrice: 1000, openingQtyMilli: 1000);
-    final before = await db.stockOf(
-        (await db.watchItems('').first).firstWhere((i) => i.name == 'Persisted').id);
+    await db.addItem(name: 'Persisted', salePrice: 1000, openingQtyMilli: 1000);
+    final before = await db.stockOf((await db.watchItems('').first)
+        .firstWhere((i) => i.name == 'Persisted')
+        .id);
     expect(before, 1000);
     await db.close();
 
@@ -60,7 +65,7 @@ void main() {
     dir.deleteSync(recursive: true);
   });
 
-  test('schema snapshot is in sync with currentSchema', () {
+  test('schema snapshots are in sync with currentSchema', () {
     expect(GeneratedHelper.versions, contains(currentSchemaForTests),
         reason: 'drift_schemas/ has no snapshot for the current schema version. '
             'Run: dart run drift_dev schema dump lib/data/database.dart drift_schemas/');
@@ -68,7 +73,7 @@ void main() {
 }
 
 /// Mirrors `AppDatabase.currentSchema` so the test can reason about it.
-const int currentSchemaForTests = 4;
+const int currentSchemaForTests = 5;
 
 const List<String> _expectedTables = <String>[
   'audit_logs',
@@ -86,6 +91,7 @@ const List<String> _expectedTables = <String>[
   'sale_lines',
   'sale_returns',
   'sales',
+  'shifts',
   'shop_settings',
   'stock_movements',
   'suppliers',

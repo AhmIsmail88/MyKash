@@ -23,6 +23,7 @@ import 'features/items/items_screen.dart';
 import 'features/sales/sales_screen.dart';
 import 'features/settings/settings_screen.dart';
 import 'features/shell/app_shell.dart';
+import 'features/shift/shift_screen.dart';
 
 final GoRouter _router = GoRouter(
   initialLocation: '/sales',
@@ -40,6 +41,7 @@ final GoRouter _router = GoRouter(
         GoRoute(path: '/suppliers', builder: (_, __) => const SuppliersScreen()),
         GoRoute(path: '/payments', builder: (_, __) => const PaymentsScreen()),
         GoRoute(path: '/reports', builder: (_, __) => const ReportsScreen()),
+        GoRoute(path: '/shift', builder: (_, __) => const ShiftScreen()),
         GoRoute(path: '/count', builder: (_, __) => const CountScreen()),
         GoRoute(path: '/backup', builder: (_, __) => const BackupScreen()),
         GoRoute(path: '/sync', builder: (_, __) => const SyncScreen()),

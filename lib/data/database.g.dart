@@ -4491,6 +4491,12 @@ class $SalesTable extends Sales with TableInfo<$SalesTable, Sale> {
   late final GeneratedColumn<String> userId = GeneratedColumn<String>(
       'user_id', aliasedName, true,
       type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _shiftIdMeta =
+      const VerificationMeta('shiftId');
+  @override
+  late final GeneratedColumn<String> shiftId = GeneratedColumn<String>(
+      'shift_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
   @override
   List<GeneratedColumn> get $columns => [
         id,
@@ -4508,7 +4514,8 @@ class $SalesTable extends Sales with TableInfo<$SalesTable, Sale> {
         total,
         paid,
         status,
-        userId
+        userId,
+        shiftId
       ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -4595,6 +4602,10 @@ class $SalesTable extends Sales with TableInfo<$SalesTable, Sale> {
       context.handle(_userIdMeta,
           userId.isAcceptableOrUnknown(data['user_id']!, _userIdMeta));
     }
+    if (data.containsKey('shift_id')) {
+      context.handle(_shiftIdMeta,
+          shiftId.isAcceptableOrUnknown(data['shift_id']!, _shiftIdMeta));
+    }
     return context;
   }
 
@@ -4636,6 +4647,8 @@ class $SalesTable extends Sales with TableInfo<$SalesTable, Sale> {
           .read(DriftSqlType.string, data['${effectivePrefix}status'])!,
       userId: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}user_id']),
+      shiftId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}shift_id']),
     );
   }
 
@@ -4662,6 +4675,9 @@ class Sale extends DataClass implements Insertable<Sale> {
   final int paid;
   final String status;
   final String? userId;
+
+  /// الوردية اللي الفاتورة اتعملت فيها (null للفواتير القديمة).
+  final String? shiftId;
   const Sale(
       {required this.id,
       required this.createdAt,
@@ -4678,7 +4694,8 @@ class Sale extends DataClass implements Insertable<Sale> {
       required this.total,
       required this.paid,
       required this.status,
-      this.userId});
+      this.userId,
+      this.shiftId});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
@@ -4701,6 +4718,9 @@ class Sale extends DataClass implements Insertable<Sale> {
     map['status'] = Variable<String>(status);
     if (!nullToAbsent || userId != null) {
       map['user_id'] = Variable<String>(userId);
+    }
+    if (!nullToAbsent || shiftId != null) {
+      map['shift_id'] = Variable<String>(shiftId);
     }
     return map;
   }
@@ -4726,6 +4746,9 @@ class Sale extends DataClass implements Insertable<Sale> {
       status: Value(status),
       userId:
           userId == null && nullToAbsent ? const Value.absent() : Value(userId),
+      shiftId: shiftId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(shiftId),
     );
   }
 
@@ -4749,6 +4772,7 @@ class Sale extends DataClass implements Insertable<Sale> {
       paid: serializer.fromJson<int>(json['paid']),
       status: serializer.fromJson<String>(json['status']),
       userId: serializer.fromJson<String?>(json['userId']),
+      shiftId: serializer.fromJson<String?>(json['shiftId']),
     );
   }
   @override
@@ -4771,6 +4795,7 @@ class Sale extends DataClass implements Insertable<Sale> {
       'paid': serializer.toJson<int>(paid),
       'status': serializer.toJson<String>(status),
       'userId': serializer.toJson<String?>(userId),
+      'shiftId': serializer.toJson<String?>(shiftId),
     };
   }
 
@@ -4790,7 +4815,8 @@ class Sale extends DataClass implements Insertable<Sale> {
           int? total,
           int? paid,
           String? status,
-          Value<String?> userId = const Value.absent()}) =>
+          Value<String?> userId = const Value.absent(),
+          Value<String?> shiftId = const Value.absent()}) =>
       Sale(
         id: id ?? this.id,
         createdAt: createdAt ?? this.createdAt,
@@ -4808,6 +4834,7 @@ class Sale extends DataClass implements Insertable<Sale> {
         paid: paid ?? this.paid,
         status: status ?? this.status,
         userId: userId.present ? userId.value : this.userId,
+        shiftId: shiftId.present ? shiftId.value : this.shiftId,
       );
   Sale copyWithCompanion(SalesCompanion data) {
     return Sale(
@@ -4828,6 +4855,7 @@ class Sale extends DataClass implements Insertable<Sale> {
       paid: data.paid.present ? data.paid.value : this.paid,
       status: data.status.present ? data.status.value : this.status,
       userId: data.userId.present ? data.userId.value : this.userId,
+      shiftId: data.shiftId.present ? data.shiftId.value : this.shiftId,
     );
   }
 
@@ -4849,7 +4877,8 @@ class Sale extends DataClass implements Insertable<Sale> {
           ..write('total: $total, ')
           ..write('paid: $paid, ')
           ..write('status: $status, ')
-          ..write('userId: $userId')
+          ..write('userId: $userId, ')
+          ..write('shiftId: $shiftId')
           ..write(')'))
         .toString();
   }
@@ -4871,7 +4900,8 @@ class Sale extends DataClass implements Insertable<Sale> {
       total,
       paid,
       status,
-      userId);
+      userId,
+      shiftId);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -4891,7 +4921,8 @@ class Sale extends DataClass implements Insertable<Sale> {
           other.total == this.total &&
           other.paid == this.paid &&
           other.status == this.status &&
-          other.userId == this.userId);
+          other.userId == this.userId &&
+          other.shiftId == this.shiftId);
 }
 
 class SalesCompanion extends UpdateCompanion<Sale> {
@@ -4911,6 +4942,7 @@ class SalesCompanion extends UpdateCompanion<Sale> {
   final Value<int> paid;
   final Value<String> status;
   final Value<String?> userId;
+  final Value<String?> shiftId;
   final Value<int> rowid;
   const SalesCompanion({
     this.id = const Value.absent(),
@@ -4929,6 +4961,7 @@ class SalesCompanion extends UpdateCompanion<Sale> {
     this.paid = const Value.absent(),
     this.status = const Value.absent(),
     this.userId = const Value.absent(),
+    this.shiftId = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   SalesCompanion.insert({
@@ -4948,6 +4981,7 @@ class SalesCompanion extends UpdateCompanion<Sale> {
     this.paid = const Value.absent(),
     this.status = const Value.absent(),
     this.userId = const Value.absent(),
+    this.shiftId = const Value.absent(),
     this.rowid = const Value.absent(),
   })  : number = Value(number),
         type = Value(type),
@@ -4971,6 +5005,7 @@ class SalesCompanion extends UpdateCompanion<Sale> {
     Expression<int>? paid,
     Expression<String>? status,
     Expression<String>? userId,
+    Expression<String>? shiftId,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -4990,6 +5025,7 @@ class SalesCompanion extends UpdateCompanion<Sale> {
       if (paid != null) 'paid': paid,
       if (status != null) 'status': status,
       if (userId != null) 'user_id': userId,
+      if (shiftId != null) 'shift_id': shiftId,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -5011,6 +5047,7 @@ class SalesCompanion extends UpdateCompanion<Sale> {
       Value<int>? paid,
       Value<String>? status,
       Value<String?>? userId,
+      Value<String?>? shiftId,
       Value<int>? rowid}) {
     return SalesCompanion(
       id: id ?? this.id,
@@ -5029,6 +5066,7 @@ class SalesCompanion extends UpdateCompanion<Sale> {
       paid: paid ?? this.paid,
       status: status ?? this.status,
       userId: userId ?? this.userId,
+      shiftId: shiftId ?? this.shiftId,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -5084,6 +5122,9 @@ class SalesCompanion extends UpdateCompanion<Sale> {
     if (userId.present) {
       map['user_id'] = Variable<String>(userId.value);
     }
+    if (shiftId.present) {
+      map['shift_id'] = Variable<String>(shiftId.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -5109,6 +5150,7 @@ class SalesCompanion extends UpdateCompanion<Sale> {
           ..write('paid: $paid, ')
           ..write('status: $status, ')
           ..write('userId: $userId, ')
+          ..write('shiftId: $shiftId, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -8973,6 +9015,730 @@ class SaleReturnsCompanion extends UpdateCompanion<SaleReturn> {
   }
 }
 
+class $ShiftsTable extends Shifts with TableInfo<$ShiftsTable, Shift> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ShiftsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+      'id', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      clientDefault: newId);
+  static const VerificationMeta _createdAtMeta =
+      const VerificationMeta('createdAt');
+  @override
+  late final GeneratedColumn<int> createdAt = GeneratedColumn<int>(
+      'created_at', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      clientDefault: nowMs);
+  static const VerificationMeta _updatedAtMeta =
+      const VerificationMeta('updatedAt');
+  @override
+  late final GeneratedColumn<int> updatedAt = GeneratedColumn<int>(
+      'updated_at', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      clientDefault: nowMs);
+  static const VerificationMeta _deviceIdMeta =
+      const VerificationMeta('deviceId');
+  @override
+  late final GeneratedColumn<String> deviceId = GeneratedColumn<String>(
+      'device_id', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      clientDefault: () => DeviceInfo.id);
+  static const VerificationMeta _isDeletedMeta =
+      const VerificationMeta('isDeleted');
+  @override
+  late final GeneratedColumn<bool> isDeleted = GeneratedColumn<bool>(
+      'is_deleted', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('CHECK ("is_deleted" IN (0, 1))'),
+      defaultValue: const Constant(false));
+  static const VerificationMeta _numberMeta = const VerificationMeta('number');
+  @override
+  late final GeneratedColumn<String> number = GeneratedColumn<String>(
+      'number', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _userIdMeta = const VerificationMeta('userId');
+  @override
+  late final GeneratedColumn<String> userId = GeneratedColumn<String>(
+      'user_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _openedAtMeta =
+      const VerificationMeta('openedAt');
+  @override
+  late final GeneratedColumn<int> openedAt = GeneratedColumn<int>(
+      'opened_at', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  static const VerificationMeta _closedAtMeta =
+      const VerificationMeta('closedAt');
+  @override
+  late final GeneratedColumn<int> closedAt = GeneratedColumn<int>(
+      'closed_at', aliasedName, true,
+      type: DriftSqlType.int, requiredDuringInsert: false);
+  static const VerificationMeta _openingCashMeta =
+      const VerificationMeta('openingCash');
+  @override
+  late final GeneratedColumn<int> openingCash = GeneratedColumn<int>(
+      'opening_cash', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  static const VerificationMeta _expectedCashMeta =
+      const VerificationMeta('expectedCash');
+  @override
+  late final GeneratedColumn<int> expectedCash = GeneratedColumn<int>(
+      'expected_cash', aliasedName, true,
+      type: DriftSqlType.int, requiredDuringInsert: false);
+  static const VerificationMeta _countedCashMeta =
+      const VerificationMeta('countedCash');
+  @override
+  late final GeneratedColumn<int> countedCash = GeneratedColumn<int>(
+      'counted_cash', aliasedName, true,
+      type: DriftSqlType.int, requiredDuringInsert: false);
+  static const VerificationMeta _differenceMeta =
+      const VerificationMeta('difference');
+  @override
+  late final GeneratedColumn<int> difference = GeneratedColumn<int>(
+      'difference', aliasedName, true,
+      type: DriftSqlType.int, requiredDuringInsert: false);
+  static const VerificationMeta _noteMeta = const VerificationMeta('note');
+  @override
+  late final GeneratedColumn<String> note = GeneratedColumn<String>(
+      'note', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _statusMeta = const VerificationMeta('status');
+  @override
+  late final GeneratedColumn<String> status = GeneratedColumn<String>(
+      'status', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('open'));
+  @override
+  List<GeneratedColumn> get $columns => [
+        id,
+        createdAt,
+        updatedAt,
+        deviceId,
+        isDeleted,
+        number,
+        userId,
+        openedAt,
+        closedAt,
+        openingCash,
+        expectedCash,
+        countedCash,
+        difference,
+        note,
+        status
+      ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'shifts';
+  @override
+  VerificationContext validateIntegrity(Insertable<Shift> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(_createdAtMeta,
+          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(_updatedAtMeta,
+          updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
+    }
+    if (data.containsKey('device_id')) {
+      context.handle(_deviceIdMeta,
+          deviceId.isAcceptableOrUnknown(data['device_id']!, _deviceIdMeta));
+    }
+    if (data.containsKey('is_deleted')) {
+      context.handle(_isDeletedMeta,
+          isDeleted.isAcceptableOrUnknown(data['is_deleted']!, _isDeletedMeta));
+    }
+    if (data.containsKey('number')) {
+      context.handle(_numberMeta,
+          number.isAcceptableOrUnknown(data['number']!, _numberMeta));
+    } else if (isInserting) {
+      context.missing(_numberMeta);
+    }
+    if (data.containsKey('user_id')) {
+      context.handle(_userIdMeta,
+          userId.isAcceptableOrUnknown(data['user_id']!, _userIdMeta));
+    } else if (isInserting) {
+      context.missing(_userIdMeta);
+    }
+    if (data.containsKey('opened_at')) {
+      context.handle(_openedAtMeta,
+          openedAt.isAcceptableOrUnknown(data['opened_at']!, _openedAtMeta));
+    } else if (isInserting) {
+      context.missing(_openedAtMeta);
+    }
+    if (data.containsKey('closed_at')) {
+      context.handle(_closedAtMeta,
+          closedAt.isAcceptableOrUnknown(data['closed_at']!, _closedAtMeta));
+    }
+    if (data.containsKey('opening_cash')) {
+      context.handle(
+          _openingCashMeta,
+          openingCash.isAcceptableOrUnknown(
+              data['opening_cash']!, _openingCashMeta));
+    }
+    if (data.containsKey('expected_cash')) {
+      context.handle(
+          _expectedCashMeta,
+          expectedCash.isAcceptableOrUnknown(
+              data['expected_cash']!, _expectedCashMeta));
+    }
+    if (data.containsKey('counted_cash')) {
+      context.handle(
+          _countedCashMeta,
+          countedCash.isAcceptableOrUnknown(
+              data['counted_cash']!, _countedCashMeta));
+    }
+    if (data.containsKey('difference')) {
+      context.handle(
+          _differenceMeta,
+          difference.isAcceptableOrUnknown(
+              data['difference']!, _differenceMeta));
+    }
+    if (data.containsKey('note')) {
+      context.handle(
+          _noteMeta, note.isAcceptableOrUnknown(data['note']!, _noteMeta));
+    }
+    if (data.containsKey('status')) {
+      context.handle(_statusMeta,
+          status.isAcceptableOrUnknown(data['status']!, _statusMeta));
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  Shift map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return Shift(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
+      createdAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}created_at'])!,
+      updatedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}updated_at'])!,
+      deviceId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}device_id'])!,
+      isDeleted: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}is_deleted'])!,
+      number: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}number'])!,
+      userId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}user_id'])!,
+      openedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}opened_at'])!,
+      closedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}closed_at']),
+      openingCash: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}opening_cash'])!,
+      expectedCash: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}expected_cash']),
+      countedCash: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}counted_cash']),
+      difference: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}difference']),
+      note: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}note']),
+      status: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}status'])!,
+    );
+  }
+
+  @override
+  $ShiftsTable createAlias(String alias) {
+    return $ShiftsTable(attachedDatabase, alias);
+  }
+}
+
+class Shift extends DataClass implements Insertable<Shift> {
+  final String id;
+  final int createdAt;
+  final int updatedAt;
+  final String deviceId;
+  final bool isDeleted;
+  final String number;
+  final String userId;
+  final int openedAt;
+  final int? closedAt;
+
+  /// النقدية الافتتاحية في الدرج (أجزاء من 100).
+  final int openingCash;
+
+  /// المحسوب لحظة التقفيل: افتتاحي + كاش + دفعات - مرتجعات - مدفوعات.
+  final int? expectedCash;
+
+  /// المعدود فعليًا بواسطة الكاشير.
+  final int? countedCash;
+
+  /// المعدود - المتوقع. سالب يعني عجز.
+  final int? difference;
+  final String? note;
+  final String status;
+  const Shift(
+      {required this.id,
+      required this.createdAt,
+      required this.updatedAt,
+      required this.deviceId,
+      required this.isDeleted,
+      required this.number,
+      required this.userId,
+      required this.openedAt,
+      this.closedAt,
+      required this.openingCash,
+      this.expectedCash,
+      this.countedCash,
+      this.difference,
+      this.note,
+      required this.status});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['created_at'] = Variable<int>(createdAt);
+    map['updated_at'] = Variable<int>(updatedAt);
+    map['device_id'] = Variable<String>(deviceId);
+    map['is_deleted'] = Variable<bool>(isDeleted);
+    map['number'] = Variable<String>(number);
+    map['user_id'] = Variable<String>(userId);
+    map['opened_at'] = Variable<int>(openedAt);
+    if (!nullToAbsent || closedAt != null) {
+      map['closed_at'] = Variable<int>(closedAt);
+    }
+    map['opening_cash'] = Variable<int>(openingCash);
+    if (!nullToAbsent || expectedCash != null) {
+      map['expected_cash'] = Variable<int>(expectedCash);
+    }
+    if (!nullToAbsent || countedCash != null) {
+      map['counted_cash'] = Variable<int>(countedCash);
+    }
+    if (!nullToAbsent || difference != null) {
+      map['difference'] = Variable<int>(difference);
+    }
+    if (!nullToAbsent || note != null) {
+      map['note'] = Variable<String>(note);
+    }
+    map['status'] = Variable<String>(status);
+    return map;
+  }
+
+  ShiftsCompanion toCompanion(bool nullToAbsent) {
+    return ShiftsCompanion(
+      id: Value(id),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+      deviceId: Value(deviceId),
+      isDeleted: Value(isDeleted),
+      number: Value(number),
+      userId: Value(userId),
+      openedAt: Value(openedAt),
+      closedAt: closedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(closedAt),
+      openingCash: Value(openingCash),
+      expectedCash: expectedCash == null && nullToAbsent
+          ? const Value.absent()
+          : Value(expectedCash),
+      countedCash: countedCash == null && nullToAbsent
+          ? const Value.absent()
+          : Value(countedCash),
+      difference: difference == null && nullToAbsent
+          ? const Value.absent()
+          : Value(difference),
+      note: note == null && nullToAbsent ? const Value.absent() : Value(note),
+      status: Value(status),
+    );
+  }
+
+  factory Shift.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return Shift(
+      id: serializer.fromJson<String>(json['id']),
+      createdAt: serializer.fromJson<int>(json['createdAt']),
+      updatedAt: serializer.fromJson<int>(json['updatedAt']),
+      deviceId: serializer.fromJson<String>(json['deviceId']),
+      isDeleted: serializer.fromJson<bool>(json['isDeleted']),
+      number: serializer.fromJson<String>(json['number']),
+      userId: serializer.fromJson<String>(json['userId']),
+      openedAt: serializer.fromJson<int>(json['openedAt']),
+      closedAt: serializer.fromJson<int?>(json['closedAt']),
+      openingCash: serializer.fromJson<int>(json['openingCash']),
+      expectedCash: serializer.fromJson<int?>(json['expectedCash']),
+      countedCash: serializer.fromJson<int?>(json['countedCash']),
+      difference: serializer.fromJson<int?>(json['difference']),
+      note: serializer.fromJson<String?>(json['note']),
+      status: serializer.fromJson<String>(json['status']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'createdAt': serializer.toJson<int>(createdAt),
+      'updatedAt': serializer.toJson<int>(updatedAt),
+      'deviceId': serializer.toJson<String>(deviceId),
+      'isDeleted': serializer.toJson<bool>(isDeleted),
+      'number': serializer.toJson<String>(number),
+      'userId': serializer.toJson<String>(userId),
+      'openedAt': serializer.toJson<int>(openedAt),
+      'closedAt': serializer.toJson<int?>(closedAt),
+      'openingCash': serializer.toJson<int>(openingCash),
+      'expectedCash': serializer.toJson<int?>(expectedCash),
+      'countedCash': serializer.toJson<int?>(countedCash),
+      'difference': serializer.toJson<int?>(difference),
+      'note': serializer.toJson<String?>(note),
+      'status': serializer.toJson<String>(status),
+    };
+  }
+
+  Shift copyWith(
+          {String? id,
+          int? createdAt,
+          int? updatedAt,
+          String? deviceId,
+          bool? isDeleted,
+          String? number,
+          String? userId,
+          int? openedAt,
+          Value<int?> closedAt = const Value.absent(),
+          int? openingCash,
+          Value<int?> expectedCash = const Value.absent(),
+          Value<int?> countedCash = const Value.absent(),
+          Value<int?> difference = const Value.absent(),
+          Value<String?> note = const Value.absent(),
+          String? status}) =>
+      Shift(
+        id: id ?? this.id,
+        createdAt: createdAt ?? this.createdAt,
+        updatedAt: updatedAt ?? this.updatedAt,
+        deviceId: deviceId ?? this.deviceId,
+        isDeleted: isDeleted ?? this.isDeleted,
+        number: number ?? this.number,
+        userId: userId ?? this.userId,
+        openedAt: openedAt ?? this.openedAt,
+        closedAt: closedAt.present ? closedAt.value : this.closedAt,
+        openingCash: openingCash ?? this.openingCash,
+        expectedCash:
+            expectedCash.present ? expectedCash.value : this.expectedCash,
+        countedCash: countedCash.present ? countedCash.value : this.countedCash,
+        difference: difference.present ? difference.value : this.difference,
+        note: note.present ? note.value : this.note,
+        status: status ?? this.status,
+      );
+  Shift copyWithCompanion(ShiftsCompanion data) {
+    return Shift(
+      id: data.id.present ? data.id.value : this.id,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      deviceId: data.deviceId.present ? data.deviceId.value : this.deviceId,
+      isDeleted: data.isDeleted.present ? data.isDeleted.value : this.isDeleted,
+      number: data.number.present ? data.number.value : this.number,
+      userId: data.userId.present ? data.userId.value : this.userId,
+      openedAt: data.openedAt.present ? data.openedAt.value : this.openedAt,
+      closedAt: data.closedAt.present ? data.closedAt.value : this.closedAt,
+      openingCash:
+          data.openingCash.present ? data.openingCash.value : this.openingCash,
+      expectedCash: data.expectedCash.present
+          ? data.expectedCash.value
+          : this.expectedCash,
+      countedCash:
+          data.countedCash.present ? data.countedCash.value : this.countedCash,
+      difference:
+          data.difference.present ? data.difference.value : this.difference,
+      note: data.note.present ? data.note.value : this.note,
+      status: data.status.present ? data.status.value : this.status,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('Shift(')
+          ..write('id: $id, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deviceId: $deviceId, ')
+          ..write('isDeleted: $isDeleted, ')
+          ..write('number: $number, ')
+          ..write('userId: $userId, ')
+          ..write('openedAt: $openedAt, ')
+          ..write('closedAt: $closedAt, ')
+          ..write('openingCash: $openingCash, ')
+          ..write('expectedCash: $expectedCash, ')
+          ..write('countedCash: $countedCash, ')
+          ..write('difference: $difference, ')
+          ..write('note: $note, ')
+          ..write('status: $status')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+      id,
+      createdAt,
+      updatedAt,
+      deviceId,
+      isDeleted,
+      number,
+      userId,
+      openedAt,
+      closedAt,
+      openingCash,
+      expectedCash,
+      countedCash,
+      difference,
+      note,
+      status);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is Shift &&
+          other.id == this.id &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt &&
+          other.deviceId == this.deviceId &&
+          other.isDeleted == this.isDeleted &&
+          other.number == this.number &&
+          other.userId == this.userId &&
+          other.openedAt == this.openedAt &&
+          other.closedAt == this.closedAt &&
+          other.openingCash == this.openingCash &&
+          other.expectedCash == this.expectedCash &&
+          other.countedCash == this.countedCash &&
+          other.difference == this.difference &&
+          other.note == this.note &&
+          other.status == this.status);
+}
+
+class ShiftsCompanion extends UpdateCompanion<Shift> {
+  final Value<String> id;
+  final Value<int> createdAt;
+  final Value<int> updatedAt;
+  final Value<String> deviceId;
+  final Value<bool> isDeleted;
+  final Value<String> number;
+  final Value<String> userId;
+  final Value<int> openedAt;
+  final Value<int?> closedAt;
+  final Value<int> openingCash;
+  final Value<int?> expectedCash;
+  final Value<int?> countedCash;
+  final Value<int?> difference;
+  final Value<String?> note;
+  final Value<String> status;
+  final Value<int> rowid;
+  const ShiftsCompanion({
+    this.id = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.deviceId = const Value.absent(),
+    this.isDeleted = const Value.absent(),
+    this.number = const Value.absent(),
+    this.userId = const Value.absent(),
+    this.openedAt = const Value.absent(),
+    this.closedAt = const Value.absent(),
+    this.openingCash = const Value.absent(),
+    this.expectedCash = const Value.absent(),
+    this.countedCash = const Value.absent(),
+    this.difference = const Value.absent(),
+    this.note = const Value.absent(),
+    this.status = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  ShiftsCompanion.insert({
+    this.id = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.deviceId = const Value.absent(),
+    this.isDeleted = const Value.absent(),
+    required String number,
+    required String userId,
+    required int openedAt,
+    this.closedAt = const Value.absent(),
+    this.openingCash = const Value.absent(),
+    this.expectedCash = const Value.absent(),
+    this.countedCash = const Value.absent(),
+    this.difference = const Value.absent(),
+    this.note = const Value.absent(),
+    this.status = const Value.absent(),
+    this.rowid = const Value.absent(),
+  })  : number = Value(number),
+        userId = Value(userId),
+        openedAt = Value(openedAt);
+  static Insertable<Shift> custom({
+    Expression<String>? id,
+    Expression<int>? createdAt,
+    Expression<int>? updatedAt,
+    Expression<String>? deviceId,
+    Expression<bool>? isDeleted,
+    Expression<String>? number,
+    Expression<String>? userId,
+    Expression<int>? openedAt,
+    Expression<int>? closedAt,
+    Expression<int>? openingCash,
+    Expression<int>? expectedCash,
+    Expression<int>? countedCash,
+    Expression<int>? difference,
+    Expression<String>? note,
+    Expression<String>? status,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (deviceId != null) 'device_id': deviceId,
+      if (isDeleted != null) 'is_deleted': isDeleted,
+      if (number != null) 'number': number,
+      if (userId != null) 'user_id': userId,
+      if (openedAt != null) 'opened_at': openedAt,
+      if (closedAt != null) 'closed_at': closedAt,
+      if (openingCash != null) 'opening_cash': openingCash,
+      if (expectedCash != null) 'expected_cash': expectedCash,
+      if (countedCash != null) 'counted_cash': countedCash,
+      if (difference != null) 'difference': difference,
+      if (note != null) 'note': note,
+      if (status != null) 'status': status,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  ShiftsCompanion copyWith(
+      {Value<String>? id,
+      Value<int>? createdAt,
+      Value<int>? updatedAt,
+      Value<String>? deviceId,
+      Value<bool>? isDeleted,
+      Value<String>? number,
+      Value<String>? userId,
+      Value<int>? openedAt,
+      Value<int?>? closedAt,
+      Value<int>? openingCash,
+      Value<int?>? expectedCash,
+      Value<int?>? countedCash,
+      Value<int?>? difference,
+      Value<String?>? note,
+      Value<String>? status,
+      Value<int>? rowid}) {
+    return ShiftsCompanion(
+      id: id ?? this.id,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      deviceId: deviceId ?? this.deviceId,
+      isDeleted: isDeleted ?? this.isDeleted,
+      number: number ?? this.number,
+      userId: userId ?? this.userId,
+      openedAt: openedAt ?? this.openedAt,
+      closedAt: closedAt ?? this.closedAt,
+      openingCash: openingCash ?? this.openingCash,
+      expectedCash: expectedCash ?? this.expectedCash,
+      countedCash: countedCash ?? this.countedCash,
+      difference: difference ?? this.difference,
+      note: note ?? this.note,
+      status: status ?? this.status,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<int>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<int>(updatedAt.value);
+    }
+    if (deviceId.present) {
+      map['device_id'] = Variable<String>(deviceId.value);
+    }
+    if (isDeleted.present) {
+      map['is_deleted'] = Variable<bool>(isDeleted.value);
+    }
+    if (number.present) {
+      map['number'] = Variable<String>(number.value);
+    }
+    if (userId.present) {
+      map['user_id'] = Variable<String>(userId.value);
+    }
+    if (openedAt.present) {
+      map['opened_at'] = Variable<int>(openedAt.value);
+    }
+    if (closedAt.present) {
+      map['closed_at'] = Variable<int>(closedAt.value);
+    }
+    if (openingCash.present) {
+      map['opening_cash'] = Variable<int>(openingCash.value);
+    }
+    if (expectedCash.present) {
+      map['expected_cash'] = Variable<int>(expectedCash.value);
+    }
+    if (countedCash.present) {
+      map['counted_cash'] = Variable<int>(countedCash.value);
+    }
+    if (difference.present) {
+      map['difference'] = Variable<int>(difference.value);
+    }
+    if (note.present) {
+      map['note'] = Variable<String>(note.value);
+    }
+    if (status.present) {
+      map['status'] = Variable<String>(status.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ShiftsCompanion(')
+          ..write('id: $id, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deviceId: $deviceId, ')
+          ..write('isDeleted: $isDeleted, ')
+          ..write('number: $number, ')
+          ..write('userId: $userId, ')
+          ..write('openedAt: $openedAt, ')
+          ..write('closedAt: $closedAt, ')
+          ..write('openingCash: $openingCash, ')
+          ..write('expectedCash: $expectedCash, ')
+          ..write('countedCash: $countedCash, ')
+          ..write('difference: $difference, ')
+          ..write('note: $note, ')
+          ..write('status: $status, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -8994,6 +9760,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $DevicesTable devices = $DevicesTable(this);
   late final $AuditLogsTable auditLogs = $AuditLogsTable(this);
   late final $SaleReturnsTable saleReturns = $SaleReturnsTable(this);
+  late final $ShiftsTable shifts = $ShiftsTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -9016,7 +9783,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         purchaseLines,
         devices,
         auditLogs,
-        saleReturns
+        saleReturns,
+        shifts
       ];
 }
 
@@ -11208,6 +11976,7 @@ typedef $$SalesTableCreateCompanionBuilder = SalesCompanion Function({
   Value<int> paid,
   Value<String> status,
   Value<String?> userId,
+  Value<String?> shiftId,
   Value<int> rowid,
 });
 typedef $$SalesTableUpdateCompanionBuilder = SalesCompanion Function({
@@ -11227,6 +11996,7 @@ typedef $$SalesTableUpdateCompanionBuilder = SalesCompanion Function({
   Value<int> paid,
   Value<String> status,
   Value<String?> userId,
+  Value<String?> shiftId,
   Value<int> rowid,
 });
 
@@ -11285,6 +12055,9 @@ class $$SalesTableFilterComposer extends Composer<_$AppDatabase, $SalesTable> {
 
   ColumnFilters<String> get userId => $composableBuilder(
       column: $table.userId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get shiftId => $composableBuilder(
+      column: $table.shiftId, builder: (column) => ColumnFilters(column));
 }
 
 class $$SalesTableOrderingComposer
@@ -11343,6 +12116,9 @@ class $$SalesTableOrderingComposer
 
   ColumnOrderings<String> get userId => $composableBuilder(
       column: $table.userId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get shiftId => $composableBuilder(
+      column: $table.shiftId, builder: (column) => ColumnOrderings(column));
 }
 
 class $$SalesTableAnnotationComposer
@@ -11401,6 +12177,9 @@ class $$SalesTableAnnotationComposer
 
   GeneratedColumn<String> get userId =>
       $composableBuilder(column: $table.userId, builder: (column) => column);
+
+  GeneratedColumn<String> get shiftId =>
+      $composableBuilder(column: $table.shiftId, builder: (column) => column);
 }
 
 class $$SalesTableTableManager extends RootTableManager<
@@ -11442,6 +12221,7 @@ class $$SalesTableTableManager extends RootTableManager<
             Value<int> paid = const Value.absent(),
             Value<String> status = const Value.absent(),
             Value<String?> userId = const Value.absent(),
+            Value<String?> shiftId = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               SalesCompanion(
@@ -11461,6 +12241,7 @@ class $$SalesTableTableManager extends RootTableManager<
             paid: paid,
             status: status,
             userId: userId,
+            shiftId: shiftId,
             rowid: rowid,
           ),
           createCompanionCallback: ({
@@ -11480,6 +12261,7 @@ class $$SalesTableTableManager extends RootTableManager<
             Value<int> paid = const Value.absent(),
             Value<String> status = const Value.absent(),
             Value<String?> userId = const Value.absent(),
+            Value<String?> shiftId = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               SalesCompanion.insert(
@@ -11499,6 +12281,7 @@ class $$SalesTableTableManager extends RootTableManager<
             paid: paid,
             status: status,
             userId: userId,
+            shiftId: shiftId,
             rowid: rowid,
           ),
           withReferenceMapper: (p0) => p0
@@ -13346,6 +14129,322 @@ typedef $$SaleReturnsTableProcessedTableManager = ProcessedTableManager<
     (SaleReturn, BaseReferences<_$AppDatabase, $SaleReturnsTable, SaleReturn>),
     SaleReturn,
     PrefetchHooks Function()>;
+typedef $$ShiftsTableCreateCompanionBuilder = ShiftsCompanion Function({
+  Value<String> id,
+  Value<int> createdAt,
+  Value<int> updatedAt,
+  Value<String> deviceId,
+  Value<bool> isDeleted,
+  required String number,
+  required String userId,
+  required int openedAt,
+  Value<int?> closedAt,
+  Value<int> openingCash,
+  Value<int?> expectedCash,
+  Value<int?> countedCash,
+  Value<int?> difference,
+  Value<String?> note,
+  Value<String> status,
+  Value<int> rowid,
+});
+typedef $$ShiftsTableUpdateCompanionBuilder = ShiftsCompanion Function({
+  Value<String> id,
+  Value<int> createdAt,
+  Value<int> updatedAt,
+  Value<String> deviceId,
+  Value<bool> isDeleted,
+  Value<String> number,
+  Value<String> userId,
+  Value<int> openedAt,
+  Value<int?> closedAt,
+  Value<int> openingCash,
+  Value<int?> expectedCash,
+  Value<int?> countedCash,
+  Value<int?> difference,
+  Value<String?> note,
+  Value<String> status,
+  Value<int> rowid,
+});
+
+class $$ShiftsTableFilterComposer
+    extends Composer<_$AppDatabase, $ShiftsTable> {
+  $$ShiftsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get deviceId => $composableBuilder(
+      column: $table.deviceId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get isDeleted => $composableBuilder(
+      column: $table.isDeleted, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get number => $composableBuilder(
+      column: $table.number, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get userId => $composableBuilder(
+      column: $table.userId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get openedAt => $composableBuilder(
+      column: $table.openedAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get closedAt => $composableBuilder(
+      column: $table.closedAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get openingCash => $composableBuilder(
+      column: $table.openingCash, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get expectedCash => $composableBuilder(
+      column: $table.expectedCash, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get countedCash => $composableBuilder(
+      column: $table.countedCash, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get difference => $composableBuilder(
+      column: $table.difference, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get note => $composableBuilder(
+      column: $table.note, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get status => $composableBuilder(
+      column: $table.status, builder: (column) => ColumnFilters(column));
+}
+
+class $$ShiftsTableOrderingComposer
+    extends Composer<_$AppDatabase, $ShiftsTable> {
+  $$ShiftsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get deviceId => $composableBuilder(
+      column: $table.deviceId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<bool> get isDeleted => $composableBuilder(
+      column: $table.isDeleted, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get number => $composableBuilder(
+      column: $table.number, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get userId => $composableBuilder(
+      column: $table.userId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get openedAt => $composableBuilder(
+      column: $table.openedAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get closedAt => $composableBuilder(
+      column: $table.closedAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get openingCash => $composableBuilder(
+      column: $table.openingCash, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get expectedCash => $composableBuilder(
+      column: $table.expectedCash,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get countedCash => $composableBuilder(
+      column: $table.countedCash, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get difference => $composableBuilder(
+      column: $table.difference, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get note => $composableBuilder(
+      column: $table.note, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get status => $composableBuilder(
+      column: $table.status, builder: (column) => ColumnOrderings(column));
+}
+
+class $$ShiftsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $ShiftsTable> {
+  $$ShiftsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<int> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<int> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<String> get deviceId =>
+      $composableBuilder(column: $table.deviceId, builder: (column) => column);
+
+  GeneratedColumn<bool> get isDeleted =>
+      $composableBuilder(column: $table.isDeleted, builder: (column) => column);
+
+  GeneratedColumn<String> get number =>
+      $composableBuilder(column: $table.number, builder: (column) => column);
+
+  GeneratedColumn<String> get userId =>
+      $composableBuilder(column: $table.userId, builder: (column) => column);
+
+  GeneratedColumn<int> get openedAt =>
+      $composableBuilder(column: $table.openedAt, builder: (column) => column);
+
+  GeneratedColumn<int> get closedAt =>
+      $composableBuilder(column: $table.closedAt, builder: (column) => column);
+
+  GeneratedColumn<int> get openingCash => $composableBuilder(
+      column: $table.openingCash, builder: (column) => column);
+
+  GeneratedColumn<int> get expectedCash => $composableBuilder(
+      column: $table.expectedCash, builder: (column) => column);
+
+  GeneratedColumn<int> get countedCash => $composableBuilder(
+      column: $table.countedCash, builder: (column) => column);
+
+  GeneratedColumn<int> get difference => $composableBuilder(
+      column: $table.difference, builder: (column) => column);
+
+  GeneratedColumn<String> get note =>
+      $composableBuilder(column: $table.note, builder: (column) => column);
+
+  GeneratedColumn<String> get status =>
+      $composableBuilder(column: $table.status, builder: (column) => column);
+}
+
+class $$ShiftsTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $ShiftsTable,
+    Shift,
+    $$ShiftsTableFilterComposer,
+    $$ShiftsTableOrderingComposer,
+    $$ShiftsTableAnnotationComposer,
+    $$ShiftsTableCreateCompanionBuilder,
+    $$ShiftsTableUpdateCompanionBuilder,
+    (Shift, BaseReferences<_$AppDatabase, $ShiftsTable, Shift>),
+    Shift,
+    PrefetchHooks Function()> {
+  $$ShiftsTableTableManager(_$AppDatabase db, $ShiftsTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ShiftsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$ShiftsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$ShiftsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> id = const Value.absent(),
+            Value<int> createdAt = const Value.absent(),
+            Value<int> updatedAt = const Value.absent(),
+            Value<String> deviceId = const Value.absent(),
+            Value<bool> isDeleted = const Value.absent(),
+            Value<String> number = const Value.absent(),
+            Value<String> userId = const Value.absent(),
+            Value<int> openedAt = const Value.absent(),
+            Value<int?> closedAt = const Value.absent(),
+            Value<int> openingCash = const Value.absent(),
+            Value<int?> expectedCash = const Value.absent(),
+            Value<int?> countedCash = const Value.absent(),
+            Value<int?> difference = const Value.absent(),
+            Value<String?> note = const Value.absent(),
+            Value<String> status = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              ShiftsCompanion(
+            id: id,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            deviceId: deviceId,
+            isDeleted: isDeleted,
+            number: number,
+            userId: userId,
+            openedAt: openedAt,
+            closedAt: closedAt,
+            openingCash: openingCash,
+            expectedCash: expectedCash,
+            countedCash: countedCash,
+            difference: difference,
+            note: note,
+            status: status,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            Value<String> id = const Value.absent(),
+            Value<int> createdAt = const Value.absent(),
+            Value<int> updatedAt = const Value.absent(),
+            Value<String> deviceId = const Value.absent(),
+            Value<bool> isDeleted = const Value.absent(),
+            required String number,
+            required String userId,
+            required int openedAt,
+            Value<int?> closedAt = const Value.absent(),
+            Value<int> openingCash = const Value.absent(),
+            Value<int?> expectedCash = const Value.absent(),
+            Value<int?> countedCash = const Value.absent(),
+            Value<int?> difference = const Value.absent(),
+            Value<String?> note = const Value.absent(),
+            Value<String> status = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              ShiftsCompanion.insert(
+            id: id,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            deviceId: deviceId,
+            isDeleted: isDeleted,
+            number: number,
+            userId: userId,
+            openedAt: openedAt,
+            closedAt: closedAt,
+            openingCash: openingCash,
+            expectedCash: expectedCash,
+            countedCash: countedCash,
+            difference: difference,
+            note: note,
+            status: status,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$ShiftsTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $ShiftsTable,
+    Shift,
+    $$ShiftsTableFilterComposer,
+    $$ShiftsTableOrderingComposer,
+    $$ShiftsTableAnnotationComposer,
+    $$ShiftsTableCreateCompanionBuilder,
+    $$ShiftsTableUpdateCompanionBuilder,
+    (Shift, BaseReferences<_$AppDatabase, $ShiftsTable, Shift>),
+    Shift,
+    PrefetchHooks Function()>;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -13386,4 +14485,6 @@ class $AppDatabaseManager {
       $$AuditLogsTableTableManager(_db, _db.auditLogs);
   $$SaleReturnsTableTableManager get saleReturns =>
       $$SaleReturnsTableTableManager(_db, _db.saleReturns);
+  $$ShiftsTableTableManager get shifts =>
+      $$ShiftsTableTableManager(_db, _db.shifts);
 }

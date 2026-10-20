@@ -6,6 +6,7 @@ import '../../core/theme.dart';
 import '../../sync/sync_providers.dart';
 import '../auth/session.dart';
 import '../license/license_panel.dart';
+import '../shift/shift_screen.dart';
 
 class _Dest {
   final String path, title;
@@ -17,6 +18,7 @@ class _Dest {
 const _destinations = <_Dest>[
   _Dest('/home', 'الرئيسية', Icons.home_outlined),
   _Dest('/sales', 'البيع', Icons.point_of_sale),
+  _Dest('/shift', 'الوردية', Icons.request_quote_outlined),
   _Dest('/items', 'الأصناف والمخزون', Icons.inventory_2_outlined),
   _Dest('/customers', 'العملاء', Icons.people_outline),
   _Dest('/count', 'الجرد', Icons.fact_check_outlined, adminOnly: true),
@@ -72,6 +74,7 @@ class AppShell extends ConsumerWidget {
           title: Text(current.title,
               style: const TextStyle(fontWeight: FontWeight.w800)),
           actions: [
+            const _ShiftChip(),
             if (session != null)
               Center(
                 child: Text(session.name,
@@ -206,5 +209,21 @@ class _BrandHeader extends StatelessWidget {
               fontSize: 24,
               fontWeight: FontWeight.w800)),
     ]);
+  }
+}
+class _ShiftChip extends ConsumerWidget {
+  const _ShiftChip();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final shift = ref.watch(currentShiftProvider).valueOrNull;
+    final open = shift != null;
+    return TextButton.icon(
+      onPressed: () => context.go('/shift'),
+      style: TextButton.styleFrom(foregroundColor: Colors.white),
+      icon: Icon(open ? Icons.point_of_sale : Icons.lock_open, size: 18),
+      label: Text(open ? shift.number : 'بدون وردية',
+          style: const TextStyle(fontWeight: FontWeight.w700)),
+    );
   }
 }
