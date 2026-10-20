@@ -21,11 +21,11 @@ String? _cachedPlatform;
 
 const MethodChannel _deviceChannel = MethodChannel('mykash/device');
 
-/// Stable per-machine identifier used to bind a license to one installation.
+/// Stable per-machine identifier used to bind a licence to one installation.
 ///
-/// The value comes from an operating-system identifier, never from the app
-/// database. Copying `mykash.sqlite` to another machine therefore does not
-/// carry this identity with it, which is what makes a license non-transferable.
+/// The value comes from operating-system identifiers, never from the app
+/// database. Copying `mykash.sqlite` or a Windows disk image to another machine
+/// therefore does not carry this identity with it.
 Future<String> machineFingerprint() async {
   final platform = Platform.operatingSystem;
   final cached = _cachedValue;
@@ -43,8 +43,10 @@ Future<String> machineFingerprint() async {
         'تعذر قراءة بصمة الجهاز. أعد تشغيل التطبيق، وإذا تكرر الخطأ راسل الدعم.');
   }
 
+  // v2 mixes in the SMBIOS UUID on Windows so a cloned disk image no longer
+  // produces the same fingerprint.
   final digest =
-      sha256.convert(utf8.encode('mykash|v1|$platform|$raw')).toString();
+      sha256.convert(utf8.encode('mykash|v2|$platform|$raw')).toString();
   final id = formatFingerprint(digest.substring(0, 12));
   _cachedValue = id;
   _cachedPlatform = platform;
@@ -60,6 +62,25 @@ String formatFingerprint(String hex12) {
   return 'MACH-${hex.substring(0, 4)}-${hex.substring(4, 8)}-${hex.substring(8, 12)}';
 }
 
+/// Firmware UUIDs that identify nothing: blank boards, Hyper-V defaults and
+/// the AMI placeholder that ships on a lot of cheap hardware. Treating them as
+/// identity would make every such machine share one fingerprint.
+const Set<String> _placeholderUuids = <String>{
+  'FFFFFFFF-FFFF-FFFF-FFFF-FFFFFFFFFFFF',
+  '00000000-0000-0000-0000-000000000000',
+  '03000200-0400-0500-0006-000700080009',
+  '12345678-1234-1234-1234-123456789ABC',
+};
+
+/// True when [value] looks like a real, unique SMBIOS UUID.
+bool isUsableSmbiosUuid(String value) {
+  final v = value.trim().toUpperCase();
+  final shape = RegExp(
+      r'^[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}$');
+  if (!shape.hasMatch(v)) return false;
+  return !_placeholderUuids.contains(v);
+}
+
 /// Drops the process-wide cache. Only used by tests.
 void debugResetMachineIdCache() {
   _cachedValue = null;
@@ -73,33 +94,72 @@ Future<String> _rawMachineId() async {
 }
 
 Future<String> _windowsMachineId() async {
-  // `reg.exe` is used instead of hand-rolled advapi32 FFI: same value, no ABI
-  // risk, and it works on every supported Windows build.
-  final query = await Process.run(
-    'reg',
-    <String>[
-      'query',
-      r'HKLM\SOFTWARE\Microsoft\Cryptography',
-      '/v',
-      'MachineGuid',
-      '/reg:64',
-    ],
-  );
-  if (query.exitCode == 0) {
-    final match =
-        RegExp(r'MachineGuid\s+REG_SZ\s+(\S+)').firstMatch('${query.stdout}');
-    final guid = match?.group(1)?.trim() ?? '';
-    if (guid.isNotEmpty) return guid;
-  }
-  // Fallback: the volume serial number of the system drive.
-  final vol = await Process.run(
-    'cmd',
-    <String>['/c', 'vol', Platform.environment['SystemDrive'] ?? 'C:'],
-  );
-  final serial =
-      RegExp(r'[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}').firstMatch('${vol.stdout}');
-  if (serial != null) return 'vol:${serial.group(0)}';
+  // Precedence matters:
+  //  * SMBIOS UUID first - it lives in the firmware, so it survives a Windows
+  //    reinstall on the same board but differs on any cloned disk image.
+  //  * MachineGuid second - survives nothing but is present on every install.
+  //  * Volume serial last - weakest of the three.
+  // Mixing SMBIOS and MachineGuid together would break licences whenever
+  // Windows is reinstalled, so exactly one source is used.
+  final uuid = await _smbiosUuid();
+  if (uuid.isNotEmpty) return 'smbios:$uuid';
+
+  final guid =
+      await _registryValue(r'HKLM\SOFTWARE\Microsoft\Cryptography', 'MachineGuid');
+  if (guid.isNotEmpty) return 'guid:$guid';
+
+  final serial = await _volumeSerial();
+  if (serial.isNotEmpty) return 'vol:$serial';
+
   throw const MachineIdException('windows');
+}
+
+/// Reads a REG_SZ value with reg.exe: no extra dependency, no ABI risk.
+Future<String> _registryValue(String key, String name) async {
+  try {
+    final r = await Process.run(
+      'reg',
+      <String>['query', key, '/v', name, '/reg:64'],
+    );
+    if (r.exitCode != 0) return '';
+    final match =
+        RegExp('$name\\s+REG_SZ\\s+(\\S+)').firstMatch('${r.stdout}');
+    return match?.group(1)?.trim() ?? '';
+  } catch (_) {
+    return '';
+  }
+}
+
+/// Firmware identifier of the motherboard/VM. Survives a disk clone only when
+/// the clone runs on the same physical board - which is exactly what we want.
+Future<String> _smbiosUuid() async {
+  try {
+    final r = await Process.run('powershell', <String>[
+      '-NoProfile',
+      '-NonInteractive',
+      '-Command',
+      '(Get-CimInstance -ClassName Win32_ComputerSystemProduct).UUID',
+    ]);
+    if (r.exitCode != 0) return '';
+    final value = '${r.stdout}'.trim().toUpperCase();
+    return isUsableSmbiosUuid(value) ? value : '';
+  } catch (_) {
+    return '';
+  }
+}
+
+Future<String> _volumeSerial() async {
+  try {
+    final vol = await Process.run(
+      'cmd',
+      <String>['/c', 'vol', Platform.environment['SystemDrive'] ?? 'C:'],
+    );
+    final serial =
+        RegExp(r'[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}').firstMatch('${vol.stdout}');
+    return serial?.group(0) ?? '';
+  } catch (_) {
+    return '';
+  }
 }
 
 Future<String> _androidMachineId() async {

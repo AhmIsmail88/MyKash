@@ -44,6 +44,7 @@ class LicenseState {
   }
 
   Map<String, dynamic> toJson() => <String, dynamic>{
+        'v': 1,
         'machine': machine,
         'trial_start': trialStart,
         'last_seen': lastSeen,
@@ -119,8 +120,12 @@ class LicenseStore {
       final storedMac = envelope['mac'] as String;
       final expected = base64Encode(
           (await _hmac()).convert(utf8.encode(data)).bytes);
-      final parsed =
-          LicenseState.fromJson(jsonDecode(data) as Map<String, dynamic>);
+      final decoded = jsonDecode(data) as Map<String, dynamic>;
+      // Files written before the state schema was versioned cannot be trusted
+      // once the fingerprint algorithm changes: drop them and let the database
+      // re-seed rather than locking the user out with "tampered".
+      if (decoded['v'] == null) return _cached = null;
+      final parsed = LicenseState.fromJson(decoded);
       if (expected != storedMac) {
         return _cached = parsed.copyWith(tampered: true);
       }
