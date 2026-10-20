@@ -69,7 +69,8 @@ void main() {
     expect(summary.cashSales, 3000);
     expect(summary.creditSales, 1500);
     expect(summary.cashReturns, 0);
-    expect(summary.cashPaymentsIn, 500);
+    expect(summary.cashFromSales, 3500); // 3000 كاش + 500 مقدم الآجل
+    expect(summary.cashPaymentsIn, 0); // المدفوعات المرتبطة بفاتورة بتتحسب في cashFromSales
     expect(summary.cashPaymentsOut, 0);
     expect(summary.expectedCash, 13500); // 10000 + 3000 + 500
 

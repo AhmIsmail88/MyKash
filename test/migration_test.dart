@@ -28,6 +28,13 @@ void main() {
     await db.close();
   });
 
+  test('upgrade from v5 to v6 keeps the declared schema', () async {
+    final connection = await verifier.startAt(5);
+    final db = AppDatabase.forTesting(connection);
+    await verifier.migrateAndValidate(db, 6);
+    await db.close();
+  });
+
   test('every business table exists after creation', () async {
     final db = AppDatabase.forTesting(NativeDatabase.memory());
     await db.initDevice(isMobile: false);
@@ -73,7 +80,7 @@ void main() {
 }
 
 /// Mirrors `AppDatabase.currentSchema` so the test can reason about it.
-const int currentSchemaForTests = 5;
+const int currentSchemaForTests = 6;
 
 const List<String> _expectedTables = <String>[
   'audit_logs',
@@ -89,6 +96,7 @@ const List<String> _expectedTables = <String>[
   'purchase_lines',
   'purchases',
   'sale_lines',
+  'sale_payments',
   'sale_returns',
   'sales',
   'shifts',

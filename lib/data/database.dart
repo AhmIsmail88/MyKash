@@ -182,6 +182,15 @@ class AuditLogs extends Table with SyncColumns {
   TextColumn get details => text().nullable()();
 }
 
+/// تفصيل طرق الدفع لكل فاتورة (كاش + كارت + محفظة في نفس الفاتورة).
+class SalePayments extends Table with SyncColumns {
+  TextColumn get saleId => text()();
+  /// cash | card | wallet | transfer | cheque
+  TextColumn get method => text()();
+  IntColumn get amount => integer()();
+  TextColumn get reference => text().nullable()();
+}
+
 /// وردية الكاشير: من فتح الدرج حتى تقفيله.
 ///
 /// وردية واحدة مفتوحة لكل جهاز. المبيعات بتتربط بيها عشان كل تقرير
@@ -255,6 +264,8 @@ class SaleRow {
 class ShiftSummary {
   final Shift shift;
   final int cashSales, creditSales, salesCount;
+  /// النقد اللي دخل الدرج من الفواتير نفسها (كاش كامل أو جزء من فاتورة مقسّمة).
+  final int cashFromSales;
   final int cashReturns, cashPaymentsIn, cashPaymentsOut;
 
   const ShiftSummary({
@@ -262,14 +273,15 @@ class ShiftSummary {
     required this.cashSales,
     required this.creditSales,
     required this.salesCount,
+    required this.cashFromSales,
     required this.cashReturns,
     required this.cashPaymentsIn,
     required this.cashPaymentsOut,
   });
 
-  /// المتوقع في الدرج: افتتاحي + كاش + دفعات داخلة − مرتجعات − مدفوعات خارجة.
+  /// المتوقع في الدرج: افتتاحي + نقد الفواتير + دفعات مستقلة − مرتجعات − مدفوعات.
   int get expectedCash =>
-      shift.openingCash + cashSales + cashPaymentsIn - cashReturns - cashPaymentsOut;
+      shift.openingCash + cashFromSales + cashPaymentsIn - cashReturns - cashPaymentsOut;
 
   /// المعدود − المتوقع. null قبل التقفيل.
   int? get difference =>
@@ -315,6 +327,15 @@ class PurchaseRow {
   final int purchasedAt, total, paid;
   const PurchaseRow(this.id, this.number, this.status, this.supplierName,
       this.purchasedAt, this.total, this.paid);
+}
+
+/// سطر دفع واحد داخل الفاتورة: الطريقة والمبلغ.
+class SalePaymentInput {
+  final String method;
+  final int amount;
+  final String? reference;
+  const SalePaymentInput(
+      {required this.method, required this.amount, this.reference});
 }
 
 class PurchaseLineInput {
@@ -414,6 +435,7 @@ class InvoiceData {
   AuditLogs,
   SaleReturns,
   Shifts,
+  SalePayments,
 ])
 class AppDatabase extends _$AppDatabase {
   AppDatabase()
@@ -424,7 +446,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.e);
 
   /// يُستخدم أيضًا للتحقق من النسخ الاحتياطية قبل الاستعادة.
-  static const int currentSchema = 5;
+  static const int currentSchema = 6;
 
   @override
   int get schemaVersion => currentSchema;
@@ -449,6 +471,9 @@ class AppDatabase extends _$AppDatabase {
           if (from < 5) {
             await m.createTable(shifts);
             await m.addColumn(sales, sales.shiftId);
+          }
+          if (from < 6) {
+            await m.createTable(salePayments);
           }
         },
       );
@@ -654,6 +679,7 @@ ORDER BY c.name
     int discount = 0,
     int paidNow = 0,
     String? userId,
+    List<SalePaymentInput>? paymentSplits,
   }) {
     return transaction(() async {
       final subtotal = lines.fold<int>(0, (s, l) => s + l.total);
@@ -661,7 +687,18 @@ ORDER BY c.name
       final number = await _nextInvoiceNumber();
       final saleId = newId();
       final now = nowMs();
-      final paid = credit ? paidNow : total;
+
+      // لما الأبلكيشن يبعت تفصيل طرق الدفع، مجموعه هو المدفوع.
+      // غير كده بنحافظ على السلوك القديم: كاش = الإجمالي، آجل = المقدم.
+      final splits = (paymentSplits == null || paymentSplits.isEmpty)
+          ? <SalePaymentInput>[
+              if ((credit ? paidNow : total) > 0)
+                SalePaymentInput(
+                    method: 'cash', amount: credit ? paidNow : total),
+            ]
+          : paymentSplits;
+      final paidFromSplits = splits.fold<int>(0, (s, p) => s + p.amount);
+      final paid = paidFromSplits > total ? total : paidFromSplits;
       final openShift = await currentShift();
 
       await into(sales).insert(SalesCompanion.insert(
@@ -677,6 +714,16 @@ ORDER BY c.name
         paid: Value(paid),
         userId: Value(userId),
       ));
+
+      for (final p in splits) {
+        if (p.amount <= 0) continue;
+        await into(salePayments).insert(SalePaymentsCompanion.insert(
+          saleId: saleId,
+          method: p.method,
+          amount: p.amount,
+          reference: Value(p.reference),
+        ));
+      }
 
       for (final l in lines) {
         await into(saleLines).insert(SaleLinesCompanion.insert(
@@ -810,14 +857,18 @@ LIMIT 300
     final totals = await customSelect(
       '''
 SELECT
-  COALESCE(SUM(CASE WHEN type = 'cash' THEN total ELSE 0 END), 0) AS cash_total,
-  COALESCE(SUM(CASE WHEN type = 'credit' THEN total ELSE 0 END), 0) AS credit_total,
-  COUNT(*) AS cnt
-FROM sales
-WHERE shift_id = ?1 AND status = 'completed' AND is_deleted = 0
+  COALESCE(SUM(CASE WHEN s.type = 'cash' THEN s.total ELSE 0 END), 0) AS cash_total,
+  COALESCE(SUM(CASE WHEN s.type = 'credit' THEN s.total ELSE 0 END), 0) AS credit_total,
+  COUNT(*) AS cnt,
+  COALESCE(SUM(COALESCE(
+    (SELECT SUM(sp.amount) FROM sale_payments sp
+       WHERE sp.sale_id = s.id AND sp.method = 'cash' AND sp.is_deleted = 0),
+    CASE WHEN s.type = 'cash' THEN s.total ELSE s.paid END)), 0) AS cash_in
+FROM sales s
+WHERE s.shift_id = ?1 AND s.status = 'completed' AND s.is_deleted = 0
 ''',
       variables: [Variable.withString(shiftId)],
-      readsFrom: {sales},
+      readsFrom: {sales, salePayments},
     ).getSingle();
 
     final returns = await customSelect(
@@ -839,7 +890,7 @@ SELECT
   COALESCE(SUM(CASE WHEN direction = 'in' THEN amount ELSE 0 END), 0) AS pin,
   COALESCE(SUM(CASE WHEN direction = 'out' THEN amount ELSE 0 END), 0) AS pout
 FROM payments
-WHERE method = 'cash' AND is_deleted = 0
+WHERE method = 'cash' AND is_deleted = 0 AND sale_id IS NULL
   AND paid_at >= ?1 AND paid_at <= ?2
 ''',
       variables: [Variable.withInt(shift.openedAt), Variable.withInt(windowEnd)],
@@ -851,6 +902,7 @@ WHERE method = 'cash' AND is_deleted = 0
       cashSales: totals.read<int>('cash_total'),
       creditSales: totals.read<int>('credit_total'),
       salesCount: totals.read<int>('cnt'),
+      cashFromSales: totals.read<int>('cash_in'),
       cashReturns: returns.read<int>('v'),
       cashPaymentsIn: movement.read<int>('pin'),
       cashPaymentsOut: movement.read<int>('pout'),
