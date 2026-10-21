@@ -17,6 +17,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   final _shop = TextEditingController();
   final _currency = TextEditingController(text: kCurrency);
   final _vatRate = TextEditingController();
+  final _maxDiscount = TextEditingController();
+  bool _allowVoid = true;
   bool _vatInclusive = false;
   final _phone = TextEditingController();
   final _address = TextEditingController();
@@ -42,6 +44,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     _autoPrint = (await db0.getSetting('auto_print')) == '1';
     _vatRate.text = await db0.getSetting('vat_rate') ?? '';
     _vatInclusive = (await db0.getSetting('vat_inclusive') ?? '0') == '1';
+    _maxDiscount.text = await db0.getSetting('max_discount_percent') ?? '';
+    _allowVoid = (await db0.getSetting('allow_void') ?? '1') == '1';
     _lock = ref.read(lockMinutesProvider);
     if (mounted) setState(() => _loaded = true);
   }
@@ -65,6 +69,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     await db.setSetting('vat_inclusive', _vatInclusive ? '1' : '0');
     kVatRate = vat.clamp(0, 100);
     kVatInclusive = _vatInclusive;
+    final cap = int.tryParse(latinDigits(_maxDiscount.text.trim())) ?? 0;
+    await db.setSetting('max_discount_percent', '${cap.clamp(0, 100)}');
+    await db.setSetting('allow_void', _allowVoid ? '1' : '0');
     kCurrency = cur;
     ref.read(lockMinutesProvider.notifier).state = _lock;
     await db.logAudit('settings_changed', userId: ref.read(sessionProvider)?.id);
@@ -210,6 +217,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           title: const Text('الأسعار شاملة الضريبة'),
           value: _vatInclusive,
           onChanged: (v) => setState(() => _vatInclusive = v),
+        ),
+        TextField(
+            controller: _maxDiscount,
+            keyboardType: TextInputType.number,
+            decoration: const InputDecoration(
+                labelText: 'أقصى خصم للكاشير % (المدير بلا حد)')),
+        SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          title: const Text('السماح للكاشير بإلغاء الفواتير'),
+          value: _allowVoid,
+          onChanged: (v) => setState(() => _allowVoid = v),
         ),
         const SizedBox(height: 10),
         TextField(

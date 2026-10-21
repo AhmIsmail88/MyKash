@@ -696,6 +696,14 @@ ORDER BY c.name
 
   /// يُنشئ الفاتورة وسطورها وحركات المخزون في معاملة واحدة.
   /// يعيد رقم الفاتورة.
+  /// دور المستخدم، أو null لو مش معروف (مسار قديم أو بدون تسجيل دخول).
+  Future<String?> _roleOf(String? userId) async {
+    if (userId == null || userId.isEmpty) return null;
+    final u = await (select(users)..where((x) => x.id.equals(userId)))
+        .getSingleOrNull();
+    return u?.role;
+  }
+
   Future<({String id, String number})> completeSale({
     required List<SaleLineInput> lines,
     required bool credit,
@@ -712,6 +720,18 @@ ORDER BY c.name
       final vatInclusive = (await getSetting('vat_inclusive') ?? '0') == '1';
       final vat = computeVat(net, vatRate, inclusive: vatInclusive);
       final total = vat.total;
+
+      // حد الخصم للكاشير. المدير بلا حد. userId فارغ = مسار قديم بدون فحص.
+      final role = await _roleOf(userId);
+      if (role != null && role != 'admin' && discount > 0) {
+        final cap =
+            int.tryParse(await getSetting('max_discount_percent') ?? '') ?? 0;
+        if (subtotal > 0 && discount * 100 > cap * subtotal) {
+          throw StateError(
+              'الخصم المسموح للكاشير $cap% فقط. راجع المدير قبل الخصم.');
+        }
+      }
+
       final number = await _nextInvoiceNumber();
       final saleId = newId();
       final now = nowMs();
@@ -1028,6 +1048,14 @@ WHERE l.sale_id = ?1 AND l.is_deleted = 0
       final sale =
           await (select(sales)..where((s) => s.id.equals(saleId))).getSingle();
       if (sale.status != 'completed') return;
+
+      // إلغاء الفواتير ممكن يتقفل للكاشير من الإعدادات.
+      final role = await _roleOf(userId);
+      if (role != null &&
+          role != 'admin' &&
+          (await getSetting('allow_void') ?? '1') == '0') {
+        throw StateError('إلغاء الفواتير مقصور على المدير.');
+      }
       await (update(sales)..where((s) => s.id.equals(saleId))).write(
         SalesCompanion(
           status: const Value('cancelled'),
