@@ -263,7 +263,9 @@ class _CartPanelState extends ConsumerState<CartPanel> {
     if (lines.isEmpty) return;
     final subtotal = cartTotal(lines);
     final discount = _discountValue(subtotal);
-    final total = subtotal - discount;
+    final total = computeVat(subtotal - discount, kVatRate,
+            inclusive: kVatInclusive)
+        .total;
 
     if (_credit && _customerId == null) {
       _snack('اختر العميل للبيع الآجل');
@@ -449,7 +451,9 @@ class _CartPanelState extends ConsumerState<CartPanel> {
     final held = ref.watch(heldCartsProvider);
     final subtotal = cartTotal(lines);
     final discount = _discountValue(subtotal);
-    final total = subtotal - discount;
+    final total = computeVat(subtotal - discount, kVatRate,
+            inclusive: kVatInclusive)
+        .total;
     return Column(children: [
       Expanded(
         child: lines.isEmpty

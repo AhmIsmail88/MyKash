@@ -16,6 +16,8 @@ class SettingsScreen extends ConsumerStatefulWidget {
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   final _shop = TextEditingController();
   final _currency = TextEditingController(text: kCurrency);
+  final _vatRate = TextEditingController();
+  bool _vatInclusive = false;
   final _phone = TextEditingController();
   final _address = TextEditingController();
   final _footer = TextEditingController();
@@ -38,6 +40,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     _footer.text = await db0.getSetting('receipt_footer') ?? '';
     _format = await db0.getSetting('receipt_format') ?? 'a4';
     _autoPrint = (await db0.getSetting('auto_print')) == '1';
+    _vatRate.text = await db0.getSetting('vat_rate') ?? '';
+    _vatInclusive = (await db0.getSetting('vat_inclusive') ?? '0') == '1';
     _lock = ref.read(lockMinutesProvider);
     if (mounted) setState(() => _loaded = true);
   }
@@ -56,6 +60,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     await db.setSetting('receipt_footer', _footer.text.trim());
     await db.setSetting('receipt_format', _format);
     await db.setSetting('auto_print', _autoPrint ? '1' : '0');
+    final vat = int.tryParse(latinDigits(_vatRate.text.trim())) ?? 0;
+    await db.setSetting('vat_rate', '${vat.clamp(0, 100)}');
+    await db.setSetting('vat_inclusive', _vatInclusive ? '1' : '0');
+    kVatRate = vat.clamp(0, 100);
+    kVatInclusive = _vatInclusive;
     kCurrency = cur;
     ref.read(lockMinutesProvider.notifier).state = _lock;
     await db.logAudit('settings_changed', userId: ref.read(sessionProvider)?.id);
@@ -190,6 +199,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         TextField(
             controller: _currency,
             decoration: const InputDecoration(labelText: 'رمز العملة (مثل ج.م)')),
+        const SizedBox(height: 10),
+        TextField(
+            controller: _vatRate,
+            keyboardType: TextInputType.number,
+            decoration: const InputDecoration(
+                labelText: 'نسبة الضريبة % (0 = بدون ضريبة)')),
+        SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          title: const Text('الأسعار شاملة الضريبة'),
+          value: _vatInclusive,
+          onChanged: (v) => setState(() => _vatInclusive = v),
+        ),
         const SizedBox(height: 10),
         TextField(
             controller: _phone,

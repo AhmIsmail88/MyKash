@@ -161,6 +161,8 @@ pw.Widget _thermalBody(InvoiceData d, ShopInfo shop, bool small) {
       _kv('المجموع', _money(d.subtotal, size: s), size: s),
       _kv('الخصم', _money(d.discount, size: s), size: s),
     ],
+    if (d.tax > 0)
+      _kv('الضريبة', _money(d.tax, size: s), size: s),
     _kv('الإجمالي', _money(d.total, size: s + 3, bold: true), size: s + 3, bold: true),
     _kv('المدفوع', _money(d.paid, size: s), size: s),
     if (credit && d.total - d.paid > 0)
@@ -269,6 +271,8 @@ List<pw.Widget> _a4Body(InvoiceData d, ShopInfo shop) {
             _kv('المجموع', _money(d.subtotal)),
             _kv('الخصم', _money(d.discount)),
           ],
+          if (d.tax > 0)
+            _kv('الضريبة', _money(d.tax)),
           _kv('الإجمالي', _money(d.total, size: 13, bold: true), size: 13, bold: true),
           _kv('المدفوع', _money(d.paid)),
           if (credit && d.total - d.paid > 0)

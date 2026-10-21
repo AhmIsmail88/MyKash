@@ -15,6 +15,27 @@ String newId() => _uuid.v4();
 int nowMs() => DateTime.now().millisecondsSinceEpoch;
 
 /// معلومات الجهاز الحالي (تُضبط عند بدء التطبيق).
+/// إعدادات الضريبة المحمّلة عند بدء التشغيل (زي kCurrency).
+/// الواجهة بتقرأهم بشكل متزامن عشان الأرقام تطلع مطابقة للمخزّن.
+int kVatRate = 0;
+bool kVatInclusive = false;
+
+/// يحسب الضريبة على الصافي (بعد الخصم).
+///
+/// شاملة = الضريبة جزء من الرقم، غير شاملة = بتتضاف فوقه.
+/// دالة نقية عشان الكود والواجهة يطلعوا نفس الرقم بالظبط.
+({int tax, int total}) computeVat(int net, int ratePercent,
+    {bool inclusive = false}) {
+  final base = net < 0 ? 0 : net;
+  if (ratePercent <= 0 || base == 0) return (tax: 0, total: base);
+  if (inclusive) {
+    final tax = (base * ratePercent / (100 + ratePercent)).round();
+    return (tax: tax, total: base);
+  }
+  final tax = (base * ratePercent / 100).round();
+  return (tax: tax, total: base + tax);
+}
+
 class DeviceInfo {
   static String id = '';
   static String prefix = 'D'; // D = ديسك توب، M = موبايل
@@ -375,6 +396,7 @@ class TopItem {
 
 class ReportData {
   final int salesTotal, salesCount, cashTotal, creditTotal;
+  final int taxTotal;
   final int returnsTotal, cogs, returnsCost;
   final List<TopItem> top;
   const ReportData({
@@ -382,6 +404,7 @@ class ReportData {
     required this.salesCount,
     required this.cashTotal,
     required this.creditTotal,
+    required this.taxTotal,
     required this.returnsTotal,
     required this.cogs,
     required this.returnsCost,
@@ -394,7 +417,7 @@ class ReportData {
 
 class InvoiceData {
   final String number, type, status;
-  final int soldAt, subtotal, discount, total, paid;
+  final int soldAt, subtotal, discount, tax, total, paid;
   final String? customerName, customerPhone, cashierName;
   final int? customerBalance;
   final List<SaleDetailLine> lines;
@@ -405,6 +428,7 @@ class InvoiceData {
     required this.soldAt,
     required this.subtotal,
     required this.discount,
+    required this.tax,
     required this.total,
     required this.paid,
     required this.lines,
@@ -683,7 +707,11 @@ ORDER BY c.name
   }) {
     return transaction(() async {
       final subtotal = lines.fold<int>(0, (s, l) => s + l.total);
-      final total = subtotal - discount;
+      final net = subtotal - discount;
+      final vatRate = int.tryParse(await getSetting('vat_rate') ?? '') ?? 0;
+      final vatInclusive = (await getSetting('vat_inclusive') ?? '0') == '1';
+      final vat = computeVat(net, vatRate, inclusive: vatInclusive);
+      final total = vat.total;
       final number = await _nextInvoiceNumber();
       final saleId = newId();
       final now = nowMs();
@@ -710,6 +738,7 @@ ORDER BY c.name
         soldAt: now,
         subtotal: subtotal,
         discount: Value(discount),
+        tax: Value(vat.tax),
         total: total,
         paid: Value(paid),
         userId: Value(userId),
@@ -1712,7 +1741,8 @@ WHERE supplier_id = ?1 AND status = 'completed' AND is_deleted = 0
       '''
 SELECT COALESCE(SUM(total), 0) AS t, COUNT(*) AS c,
   COALESCE(SUM(CASE WHEN type = 'cash' THEN total ELSE 0 END), 0) AS cash,
-  COALESCE(SUM(CASE WHEN type = 'credit' THEN total ELSE 0 END), 0) AS credit
+  COALESCE(SUM(CASE WHEN type = 'credit' THEN total ELSE 0 END), 0) AS credit,
+  COALESCE(SUM(tax), 0) AS tax_total
 FROM sales
 WHERE status = 'completed' AND is_deleted = 0 AND sold_at >= ?1 AND sold_at < ?2
 ''',
@@ -1768,6 +1798,7 @@ LIMIT 10
       salesCount: s.read<int>('c'),
       cashTotal: s.read<int>('cash'),
       creditTotal: s.read<int>('credit'),
+      taxTotal: s.read<int>('tax_total'),
       returnsTotal: ret.read<int>('amt'),
       cogs: cogs.read<double>('c').round(),
       returnsCost: ret.read<double>('cost').round(),
@@ -1920,6 +1951,7 @@ SELECT CAST(COALESCE(SUM(st * cost / 1000.0), 0) AS REAL) AS v FROM (
       soldAt: sale.soldAt,
       subtotal: sale.subtotal,
       discount: sale.discount,
+      tax: sale.tax,
       total: sale.total,
       paid: sale.paid,
       customerName: cname,
