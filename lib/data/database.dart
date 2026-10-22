@@ -118,7 +118,8 @@ class Items extends Table with SyncColumns {
 class ItemUnits extends Table with SyncColumns {
   TextColumn get itemId => text()();
   TextColumn get name => text()();
-  IntColumn get factorMilli => integer()(); // كم وحدة أساسية في هذه الوحدة ×1000
+  IntColumn get factorMilli =>
+      integer()(); // كم وحدة أساسية في هذه الوحدة ×1000
   IntColumn get salePrice => integer()();
   BoolColumn get isDefault => boolean().withDefault(const Constant(false))();
 }
@@ -134,7 +135,8 @@ class ItemBarcodes extends Table with SyncColumns {
 class StockMovements extends Table with SyncColumns {
   TextColumn get itemId => text()();
   IntColumn get qtyMilli => integer()(); // موجب أو سالب، بالوحدة الأساسية ×1000
-  TextColumn get reason => text()(); // sale, purchase, return, count, damage, opening
+  TextColumn get reason =>
+      text()(); // sale, purchase, return, count, damage, opening
   TextColumn get refId => text().nullable()();
   IntColumn get expiryDate => integer().nullable()();
   TextColumn get note => text().nullable()();
@@ -167,6 +169,7 @@ class Sales extends Table with SyncColumns {
   IntColumn get paid => integer().withDefault(const Constant(0))();
   TextColumn get status => text().withDefault(const Constant('completed'))();
   TextColumn get userId => text().nullable()();
+
   /// الوردية اللي الفاتورة اتعملت فيها (null للفواتير القديمة).
   TextColumn get shiftId => text().nullable()();
 }
@@ -216,6 +219,7 @@ class Devices extends Table with SyncColumns {
   TextColumn get kind => text()(); // desktop | mobile
   TextColumn get sharedKey => text().nullable()();
   IntColumn get lastSyncAt => integer().nullable()();
+
   /// بادئة أرقام فواتير هذا الجهاز (D للرئيسي، M1/M2... للموبايلات).
   TextColumn get prefix => text().nullable()();
 }
@@ -227,9 +231,22 @@ class AuditLogs extends Table with SyncColumns {
   TextColumn get details => text().nullable()();
 }
 
+/// سعر متدرّج لوحدة صنف حسب الكمية (تجزئة / جملة / كميات).
+class PriceTiers extends Table with SyncColumns {
+  TextColumn get unitId => text()();
+
+  /// أقل كمية تبدأ عندها الفئة (بوحدات الألف).
+  IntColumn get minQtyMilli => integer()();
+
+  /// سعر الوحدة عند الفئة دي.
+  IntColumn get unitPrice => integer()();
+  TextColumn get label => text().nullable()();
+}
+
 /// تفصيل طرق الدفع لكل فاتورة (كاش + كارت + محفظة في نفس الفاتورة).
 class SalePayments extends Table with SyncColumns {
   TextColumn get saleId => text()();
+
   /// cash | card | wallet | transfer | cheque
   TextColumn get method => text()();
   IntColumn get amount => integer()();
@@ -245,12 +262,16 @@ class Shifts extends Table with SyncColumns {
   TextColumn get userId => text()();
   IntColumn get openedAt => integer()();
   IntColumn get closedAt => integer().nullable()();
+
   /// النقدية الافتتاحية في الدرج (أجزاء من 100).
   IntColumn get openingCash => integer().withDefault(const Constant(0))();
+
   /// المحسوب لحظة التقفيل: افتتاحي + كاش + دفعات - مرتجعات - مدفوعات.
   IntColumn get expectedCash => integer().nullable()();
+
   /// المعدود فعليًا بواسطة الكاشير.
   IntColumn get countedCash => integer().nullable()();
+
   /// المعدود - المتوقع. سالب يعني عجز.
   IntColumn get difference => integer().nullable()();
   TextColumn get note => text().nullable()();
@@ -271,14 +292,23 @@ class SaleReturns extends Table with SyncColumns {
 
 class ItemRow {
   final String id, name;
+
   /// سعر وتكلفة الوحدة الأساسية، والمخزون بالوحدة الأساسية ×1000.
   final int salePrice, costPrice, stockMilli;
   final String baseUnit, defUnitName;
   final int defUnitPrice;
+
   /// حد إعادة الطلب بالوحدة الأساسية ×1000 (0 = غير محدد).
   final int reorderMilli;
-  const ItemRow(this.id, this.name, this.salePrice, this.costPrice,
-      this.stockMilli, this.baseUnit, this.defUnitName, this.defUnitPrice,
+  const ItemRow(
+      this.id,
+      this.name,
+      this.salePrice,
+      this.costPrice,
+      this.stockMilli,
+      this.baseUnit,
+      this.defUnitName,
+      this.defUnitPrice,
       this.reorderMilli);
 }
 
@@ -309,6 +339,7 @@ class SaleRow {
 class ShiftSummary {
   final Shift shift;
   final int cashSales, creditSales, salesCount;
+
   /// النقد اللي دخل الدرج من الفواتير نفسها (كاش كامل أو جزء من فاتورة مقسّمة).
   final int cashFromSales;
   final int cashReturns, cashPaymentsIn, cashPaymentsOut;
@@ -326,7 +357,11 @@ class ShiftSummary {
 
   /// المتوقع في الدرج: افتتاحي + نقد الفواتير + دفعات مستقلة − مرتجعات − مدفوعات.
   int get expectedCash =>
-      shift.openingCash + cashFromSales + cashPaymentsIn - cashReturns - cashPaymentsOut;
+      shift.openingCash +
+      cashFromSales +
+      cashPaymentsIn -
+      cashReturns -
+      cashPaymentsOut;
 
   /// المعدود − المتوقع. null قبل التقفيل.
   int? get difference =>
@@ -346,6 +381,7 @@ class SaleLineInput {
   final String itemId;
   final String? unitId;
   final int qtyMilli, unitPrice, unitCost;
+
   /// عدد الوحدات الأساسية في وحدة السطر ×1000 (للتحويل لحركة المخزون).
   final int factorMilli;
   const SaleLineInput({
@@ -383,6 +419,30 @@ class SalePaymentInput {
       {required this.method, required this.amount, this.reference});
 }
 
+/// فئة سعرية: من كام (بالألف) وبكام للوحدة.
+class PriceTierInput {
+  final int minQtyMilli;
+  final int unitPrice;
+  final String? label;
+  const PriceTierInput(
+      {required this.minQtyMilli, required this.unitPrice, this.label});
+}
+
+/// يختار الفئة المناسبة لكمية معيّنة: أعلى حد أدنى لا يتجاوز الكمية.
+///
+/// دالة نقية عشان تتختبر لوحدها وتُستخدم في الكارت برضه.
+int? resolveTierPriceMs(List<PriceTierInput> tiers, int qtyMilli) {
+  int? bestPrice;
+  var bestMin = -1;
+  for (final t in tiers) {
+    if (t.minQtyMilli <= qtyMilli && t.minQtyMilli > bestMin) {
+      bestMin = t.minQtyMilli;
+      bestPrice = t.unitPrice;
+    }
+  }
+  return bestPrice;
+}
+
 class PurchaseLineInput {
   final String itemId;
   final String? unitId;
@@ -400,7 +460,8 @@ class PurchaseLineInput {
 class PurchaseDetailLine {
   final String name, unitName;
   final int qtyMilli, unitCost;
-  const PurchaseDetailLine(this.name, this.unitName, this.qtyMilli, this.unitCost);
+  const PurchaseDetailLine(
+      this.name, this.unitName, this.qtyMilli, this.unitCost);
   int get total => (unitCost * qtyMilli / 1000).round();
 }
 
@@ -435,6 +496,7 @@ class ReportData {
     required this.top,
   });
   int get net => salesTotal - returnsTotal;
+
   /// الربح التقريبي = صافي المبيعات − تكلفة البضاعة المباعة (بعد المرتجع).
   int get profit => net - (cogs - returnsCost);
 }
@@ -484,6 +546,7 @@ class InvoiceData {
   SaleReturns,
   Shifts,
   SalePayments,
+  PriceTiers,
 ])
 class AppDatabase extends _$AppDatabase {
   AppDatabase()
@@ -494,7 +557,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.e);
 
   /// يُستخدم أيضًا للتحقق من النسخ الاحتياطية قبل الاستعادة.
-  static const int currentSchema = 6;
+  static const int currentSchema = 7;
 
   @override
   int get schemaVersion => currentSchema;
@@ -522,6 +585,9 @@ class AppDatabase extends _$AppDatabase {
           }
           if (from < 6) {
             await m.createTable(salePayments);
+          }
+          if (from < 7) {
+            await m.createTable(priceTiers);
           }
         },
       );
@@ -874,12 +940,11 @@ LIMIT 300
   // ---------- الوردية ----------
 
   /// أحدث وردية مفتوحة على الجهاز، أو null لو مفيش.
-  Future<Shift?> currentShift() =>
-      (select(shifts)
-            ..where((s) => s.status.equals('open'))
-            ..orderBy([(s) => OrderingTerm.desc(s.openedAt)])
-            ..limit(1))
-          .getSingleOrNull();
+  Future<Shift?> currentShift() => (select(shifts)
+        ..where((s) => s.status.equals('open'))
+        ..orderBy([(s) => OrderingTerm.desc(s.openedAt)])
+        ..limit(1))
+      .getSingleOrNull();
 
   /// متابعة الوردية المفتوحة لحظيًا.
   Stream<Shift?> watchCurrentShift() =>
@@ -966,7 +1031,10 @@ FROM payments
 WHERE method = 'cash' AND is_deleted = 0 AND sale_id IS NULL
   AND paid_at >= ?1 AND paid_at <= ?2
 ''',
-      variables: [Variable.withInt(shift.openedAt), Variable.withInt(windowEnd)],
+      variables: [
+        Variable.withInt(shift.openedAt),
+        Variable.withInt(windowEnd)
+      ],
       readsFrom: {payments},
     ).getSingle();
 
@@ -1038,7 +1106,52 @@ ORDER BY s.sold_at DESC
         .toList());
   }
 
-  Future<List<SaleDetailLine>> saleLinesFor(String saleId) async {    final rows = await customSelect(
+  // ---------- الأسعار المتدرجة ----------
+
+  /// فئات السعر الفعّالة لوحدة معيّنة، مرتبة من الأقل كمية للأكبر.
+  Future<List<PriceTier>> tiersForUnit(String unitId) => (select(priceTiers)
+        ..where((t) => t.unitId.equals(unitId) & t.isDeleted.equals(false))
+        ..orderBy([(t) => OrderingTerm.asc(t.minQtyMilli)]))
+      .get();
+
+  /// يستبدل فئات وحدة معيّنة (حذف ناعم للقديم ثم إدخال الجديد).
+  Future<void> saveTiersForUnit(String unitId, List<PriceTierInput> tiers) {
+    return transaction(() async {
+      await (update(priceTiers)
+            ..where((t) => t.unitId.equals(unitId) & t.isDeleted.equals(false)))
+          .write(PriceTiersCompanion(
+        isDeleted: const Value(true),
+        updatedAt: Value(nowMs()),
+      ));
+      for (final t in tiers) {
+        if (t.minQtyMilli <= 0 || t.unitPrice <= 0) continue;
+        await into(priceTiers).insert(PriceTiersCompanion.insert(
+          unitId: unitId,
+          minQtyMilli: t.minQtyMilli,
+          unitPrice: t.unitPrice,
+          label: Value(t.label),
+        ));
+      }
+    });
+  }
+
+  /// سعر الوحدة عند كمية معيّنة، أو null لو مفيش فئة مطابقة.
+  Future<int?> priceForUnit(String unitId, int qtyMilli) async {
+    final rows = await tiersForUnit(unitId);
+    return resolveTierPriceMs(
+      rows
+          .map((r) => PriceTierInput(
+                minQtyMilli: r.minQtyMilli,
+                unitPrice: r.unitPrice,
+                label: r.label,
+              ))
+          .toList(),
+      qtyMilli,
+    );
+  }
+
+  Future<List<SaleDetailLine>> saleLinesFor(String saleId) async {
+    final rows = await customSelect(
       '''
 SELECT l.id AS line_id, l.item_id, i.name AS name,
        COALESCE(u.name, '') AS unit_name, l.qty_milli, l.unit_price,
@@ -1158,8 +1271,8 @@ WHERE l.sale_id = ?1 AND l.is_deleted = 0
         deviceId: Value(DeviceInfo.id),
       ));
       if (reorderMilli != null) {
-        await (update(items)..where((i) => i.id.equals(id))).write(
-            ItemsCompanion(reorderLevelMilli: Value(reorderMilli)));
+        await (update(items)..where((i) => i.id.equals(id)))
+            .write(ItemsCompanion(reorderLevelMilli: Value(reorderMilli)));
       }
       // سعر الصنف الرئيسي = سعر الوحدة الأساسية (عامل التحويل 1)
       await (update(itemUnits)
@@ -1215,7 +1328,9 @@ WHERE l.sale_id = ?1 AND l.is_deleted = 0
     final q = select(users)
       ..where((u) => u.isDeleted.equals(false))
       ..orderBy([(u) => OrderingTerm.asc(u.name)]);
-    return q.watch().map((l) => onlyActive ? l.where((u) => u.active).toList() : l);
+    return q
+        .watch()
+        .map((l) => onlyActive ? l.where((u) => u.active).toList() : l);
   }
 
   Future<User> createUser({
@@ -1245,7 +1360,8 @@ WHERE l.sale_id = ?1 AND l.is_deleted = 0
 
   Future<void> changePin(String userId, String pin) async {
     final salt = _newSalt();
-    await (update(users)..where((u) => u.id.equals(userId))).write(UsersCompanion(
+    await (update(users)..where((u) => u.id.equals(userId)))
+        .write(UsersCompanion(
       pinSalt: Value(salt),
       pinHash: Value(_hashPin(pin, salt)),
       updatedAt: Value(nowMs()),
@@ -1254,7 +1370,8 @@ WHERE l.sale_id = ?1 AND l.is_deleted = 0
   }
 
   Future<void> setUserActive(String userId, bool active) async {
-    await (update(users)..where((u) => u.id.equals(userId))).write(UsersCompanion(
+    await (update(users)..where((u) => u.id.equals(userId)))
+        .write(UsersCompanion(
       active: Value(active),
       updatedAt: Value(nowMs()),
       deviceId: Value(DeviceInfo.id),
@@ -1469,7 +1586,9 @@ WHERE l.sale_id = ?1 AND l.is_deleted = 0
       }
       if (refundTotal > 0) {
         await logAudit('return',
-            userId: userId, refId: saleId, details: '${sale.number}: $refundTotal');
+            userId: userId,
+            refId: saleId,
+            details: '${sale.number}: $refundTotal');
       }
       return refundTotal;
     });
@@ -1520,7 +1639,8 @@ ORDER BY s.name
   }
 
   Future<String> _nextPurchaseNumber() async {
-    final row = await (select(counters)..where((c) => c.name.equals('purchase')))
+    final row = await (select(counters)
+          ..where((c) => c.name.equals('purchase')))
         .getSingleOrNull();
     final next = (row?.value ?? 0) + 1;
     await into(counters).insertOnConflictUpdate(
@@ -1648,7 +1768,8 @@ WHERE l.purchase_id = ?1 AND l.is_deleted = 0
               updatedAt: Value(nowMs()),
               deviceId: Value(DeviceInfo.id)));
       final lines = await (select(purchaseLines)
-            ..where((l) => l.purchaseId.equals(purchaseId) & l.isDeleted.equals(false)))
+            ..where((l) =>
+                l.purchaseId.equals(purchaseId) & l.isDeleted.equals(false)))
           .get();
       for (final l in lines) {
         await into(stockMovements).insert(StockMovementsCompanion.insert(
@@ -1700,10 +1821,15 @@ WHERE l.purchase_id = ?1 AND l.is_deleted = 0
         userId: userId, refId: partyId, details: '$partyType: $amount');
   }
 
-  static const _methodAr = {'cash': 'نقدي', 'transfer': 'تحويل', 'cheque': 'شيك'};
+  static const _methodAr = {
+    'cash': 'نقدي',
+    'transfer': 'تحويل',
+    'cheque': 'شيك'
+  };
 
   Future<List<StatementEntry>> _paymentsEntries(
-      String partyType, String partyId, {required bool inIsMinus}) async {
+      String partyType, String partyId,
+      {required bool inIsMinus}) async {
     final rows = await customSelect(
       '''
 SELECT direction, amount, paid_at, method, note FROM payments
@@ -1718,7 +1844,9 @@ WHERE party_type = ?1 AND party_id = ?2 AND is_deleted = 0
       final method = _methodAr[r.read<String>('method')] ?? '';
       final note = r.readNullable<String>('note');
       final title = [
-        dir == 'in' ? (inIsMinus ? 'دفعة' : 'استرداد') : (inIsMinus ? 'استرداد' : 'سداد'),
+        dir == 'in'
+            ? (inIsMinus ? 'دفعة' : 'استرداد')
+            : (inIsMinus ? 'استرداد' : 'سداد'),
         if (method.isNotEmpty) '($method)',
         if (note != null && note.isNotEmpty) '— $note',
       ].join(' ');
@@ -1739,8 +1867,8 @@ WHERE customer_id = ?1 AND type = 'credit' AND status = 'completed' AND is_delet
       readsFrom: {sales},
     ).get();
     for (final r in sl) {
-      out.add(StatementEntry(r.read<int>('sold_at'),
-          'فاتورة ${r.read<String>('number')}',
+      out.add(StatementEntry(
+          r.read<int>('sold_at'), 'فاتورة ${r.read<String>('number')}',
           plus: r.read<int>('total')));
     }
     final rt = await customSelect(
@@ -1754,8 +1882,8 @@ WHERE s.customer_id = ?1 AND s.type = 'credit' AND s.status = 'completed'
       readsFrom: {saleReturns, sales},
     ).get();
     for (final r in rt) {
-      out.add(StatementEntry(r.read<int>('at'),
-          'مرتجع فاتورة ${r.read<String>('number')}',
+      out.add(StatementEntry(
+          r.read<int>('at'), 'مرتجع فاتورة ${r.read<String>('number')}',
           minus: r.read<int>('amt')));
     }
     out.addAll(await _paymentsEntries('customer', customerId, inIsMinus: true));
@@ -1779,7 +1907,8 @@ WHERE supplier_id = ?1 AND status = 'completed' AND is_deleted = 0
           plus: r.read<int>('total')));
     }
     // للمورد: out (سداد) ينقص المستحق، و in (استرداد/عكس) يزيده
-    out.addAll(await _paymentsEntries('supplier', supplierId, inIsMinus: false));
+    out.addAll(
+        await _paymentsEntries('supplier', supplierId, inIsMinus: false));
     out.sort((a, b) => a.at.compareTo(b.at));
     return out;
   }
@@ -1883,12 +2012,16 @@ SELECT CAST(COALESCE(SUM(st * cost / 1000.0), 0) AS REAL) AS v FROM (
 
   Future<int> receivablesTotal() async {
     final list = await watchCustomers().first;
-    return list.where((c) => c.balance > 0).fold<int>(0, (s, c) => s + c.balance);
+    return list
+        .where((c) => c.balance > 0)
+        .fold<int>(0, (s, c) => s + c.balance);
   }
 
   Future<int> payablesTotal() async {
     final list = await watchSuppliers().first;
-    return list.where((c) => c.balance > 0).fold<int>(0, (s, c) => s + c.balance);
+    return list
+        .where((c) => c.balance > 0)
+        .fold<int>(0, (s, c) => s + c.balance);
   }
 
   /// أصناف رصيدها صفر/سالب أو وصل لحد إعادة الطلب.
@@ -1949,8 +2082,8 @@ SELECT CAST(COALESCE(SUM(st * cost / 1000.0), 0) AS REAL) AS v FROM (
     final c = code.trim();
     if (c.isEmpty) throw StateError('اكتب الباركود');
     if (await _barcodeTaken(c)) throw StateError('الباركود مستخدم لصنف آخر');
-    await into(itemBarcodes).insert(
-        ItemBarcodesCompanion.insert(itemId: itemId, unitId: Value(unitId), code: c));
+    await into(itemBarcodes).insert(ItemBarcodesCompanion.insert(
+        itemId: itemId, unitId: Value(unitId), code: c));
   }
 
   Future<void> removeBarcode(String barcodeId) async {
@@ -1984,7 +2117,8 @@ SELECT CAST(COALESCE(SUM(st * cost / 1000.0), 0) AS REAL) AS v FROM (
     String? cname, cphone, uname;
     int? balance;
     if (sale.customerId != null) {
-      final c = await (select(customers)..where((x) => x.id.equals(sale.customerId!)))
+      final c = await (select(customers)
+            ..where((x) => x.id.equals(sale.customerId!)))
           .getSingleOrNull();
       cname = c?.name;
       cphone = c?.phone;
@@ -2054,7 +2188,8 @@ SELECT CAST(COALESCE(SUM(st * cost / 1000.0), 0) AS REAL) AS v FROM (
         "CREATE TABLE IF NOT EXISTS change_log (seq INTEGER PRIMARY KEY AUTOINCREMENT, tbl TEXT NOT NULL, row_id TEXT NOT NULL, origin TEXT NOT NULL DEFAULT '')");
     await customStatement(
         "CREATE TABLE IF NOT EXISTS sync_flags (id INTEGER PRIMARY KEY, origin TEXT NOT NULL DEFAULT '')");
-    await customStatement("INSERT OR IGNORE INTO sync_flags (id, origin) VALUES (1, '')");
+    await customStatement(
+        "INSERT OR IGNORE INTO sync_flags (id, origin) VALUES (1, '')");
     for (final t in syncTables) {
       for (final ev in ['INSERT', 'UPDATE']) {
         await customStatement(
@@ -2083,8 +2218,7 @@ SELECT CAST(COALESCE(SUM(st * cost / 1000.0), 0) AS REAL) AS v FROM (
     for (final (t, id) in keys) {
       if (!syncTables.contains(t) || !seen.add('$t|$id')) continue;
       final r = await customSelect('SELECT * FROM $t WHERE id = ?1',
-              variables: [Variable.withString(id)])
-          .getSingleOrNull();
+          variables: [Variable.withString(id)]).getSingleOrNull();
       if (r != null) out.add({'t': t, 'd': Map<String, dynamic>.from(r.data)});
     }
     return out;
@@ -2103,12 +2237,17 @@ SELECT CAST(COALESCE(SUM(st * cost / 1000.0), 0) AS REAL) AS v FROM (
     }
     final rows = await _rowsFor(
         e.map((r) => (r.read<String>('tbl'), r.read<String>('row_id'))));
-    return (rows: rows, maxSeq: e.last.read<int>('seq'), full: e.length >= limit);
+    return (
+      rows: rows,
+      maxSeq: e.last.read<int>('seq'),
+      full: e.length >= limit
+    );
   }
 
   /// (للجهاز الرئيسي) تغييرات بعد [cursor] بدون ما مصدره الجهاز نفسه.
   Future<({List<Map<String, dynamic>> rows, int next, bool more})>
-      collectChangesForPeer(int cursor, String peerId, {int limit = 500}) async {
+      collectChangesForPeer(int cursor, String peerId,
+          {int limit = 500}) async {
     final e = await customSelect(
       'SELECT seq, tbl, row_id, origin FROM change_log '
       'WHERE seq > ?1 ORDER BY seq LIMIT ?2',
@@ -2209,7 +2348,9 @@ SELECT CAST(COALESCE(SUM(st * cost / 1000.0), 0) AS REAL) AS v FROM (
         .getSingleOrNull();
     var prefix = existing?.prefix ?? '';
     if (prefix.isEmpty) {
-      final all = await (select(devices)..where((d) => d.isDeleted.equals(false))).get();
+      final all = await (select(devices)
+            ..where((d) => d.isDeleted.equals(false)))
+          .get();
       final used = all.map((d) => d.prefix).whereType<String>().toSet();
       var n = all.where((d) => d.kind == 'mobile').length + 1;
       while (used.contains('M$n')) {
@@ -2226,7 +2367,8 @@ SELECT CAST(COALESCE(SUM(st * cost / 1000.0), 0) AS REAL) AS v FROM (
         prefix: Value(prefix),
       ));
     } else {
-      await (update(devices)..where((d) => d.id.equals(id))).write(DevicesCompanion(
+      await (update(devices)..where((d) => d.id.equals(id)))
+          .write(DevicesCompanion(
         name: Value(name),
         sharedKey: Value(key),
         prefix: Value(prefix),

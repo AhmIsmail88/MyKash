@@ -10203,6 +10203,475 @@ class SalePaymentsCompanion extends UpdateCompanion<SalePayment> {
   }
 }
 
+class $PriceTiersTable extends PriceTiers
+    with TableInfo<$PriceTiersTable, PriceTier> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $PriceTiersTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+      'id', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      clientDefault: newId);
+  static const VerificationMeta _createdAtMeta =
+      const VerificationMeta('createdAt');
+  @override
+  late final GeneratedColumn<int> createdAt = GeneratedColumn<int>(
+      'created_at', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      clientDefault: nowMs);
+  static const VerificationMeta _updatedAtMeta =
+      const VerificationMeta('updatedAt');
+  @override
+  late final GeneratedColumn<int> updatedAt = GeneratedColumn<int>(
+      'updated_at', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      clientDefault: nowMs);
+  static const VerificationMeta _deviceIdMeta =
+      const VerificationMeta('deviceId');
+  @override
+  late final GeneratedColumn<String> deviceId = GeneratedColumn<String>(
+      'device_id', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      clientDefault: () => DeviceInfo.id);
+  static const VerificationMeta _isDeletedMeta =
+      const VerificationMeta('isDeleted');
+  @override
+  late final GeneratedColumn<bool> isDeleted = GeneratedColumn<bool>(
+      'is_deleted', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('CHECK ("is_deleted" IN (0, 1))'),
+      defaultValue: const Constant(false));
+  static const VerificationMeta _unitIdMeta = const VerificationMeta('unitId');
+  @override
+  late final GeneratedColumn<String> unitId = GeneratedColumn<String>(
+      'unit_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _minQtyMilliMeta =
+      const VerificationMeta('minQtyMilli');
+  @override
+  late final GeneratedColumn<int> minQtyMilli = GeneratedColumn<int>(
+      'min_qty_milli', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  static const VerificationMeta _unitPriceMeta =
+      const VerificationMeta('unitPrice');
+  @override
+  late final GeneratedColumn<int> unitPrice = GeneratedColumn<int>(
+      'unit_price', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  static const VerificationMeta _labelMeta = const VerificationMeta('label');
+  @override
+  late final GeneratedColumn<String> label = GeneratedColumn<String>(
+      'label', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  @override
+  List<GeneratedColumn> get $columns => [
+        id,
+        createdAt,
+        updatedAt,
+        deviceId,
+        isDeleted,
+        unitId,
+        minQtyMilli,
+        unitPrice,
+        label
+      ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'price_tiers';
+  @override
+  VerificationContext validateIntegrity(Insertable<PriceTier> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(_createdAtMeta,
+          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(_updatedAtMeta,
+          updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
+    }
+    if (data.containsKey('device_id')) {
+      context.handle(_deviceIdMeta,
+          deviceId.isAcceptableOrUnknown(data['device_id']!, _deviceIdMeta));
+    }
+    if (data.containsKey('is_deleted')) {
+      context.handle(_isDeletedMeta,
+          isDeleted.isAcceptableOrUnknown(data['is_deleted']!, _isDeletedMeta));
+    }
+    if (data.containsKey('unit_id')) {
+      context.handle(_unitIdMeta,
+          unitId.isAcceptableOrUnknown(data['unit_id']!, _unitIdMeta));
+    } else if (isInserting) {
+      context.missing(_unitIdMeta);
+    }
+    if (data.containsKey('min_qty_milli')) {
+      context.handle(
+          _minQtyMilliMeta,
+          minQtyMilli.isAcceptableOrUnknown(
+              data['min_qty_milli']!, _minQtyMilliMeta));
+    } else if (isInserting) {
+      context.missing(_minQtyMilliMeta);
+    }
+    if (data.containsKey('unit_price')) {
+      context.handle(_unitPriceMeta,
+          unitPrice.isAcceptableOrUnknown(data['unit_price']!, _unitPriceMeta));
+    } else if (isInserting) {
+      context.missing(_unitPriceMeta);
+    }
+    if (data.containsKey('label')) {
+      context.handle(
+          _labelMeta, label.isAcceptableOrUnknown(data['label']!, _labelMeta));
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  PriceTier map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return PriceTier(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
+      createdAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}created_at'])!,
+      updatedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}updated_at'])!,
+      deviceId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}device_id'])!,
+      isDeleted: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}is_deleted'])!,
+      unitId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}unit_id'])!,
+      minQtyMilli: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}min_qty_milli'])!,
+      unitPrice: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}unit_price'])!,
+      label: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}label']),
+    );
+  }
+
+  @override
+  $PriceTiersTable createAlias(String alias) {
+    return $PriceTiersTable(attachedDatabase, alias);
+  }
+}
+
+class PriceTier extends DataClass implements Insertable<PriceTier> {
+  final String id;
+  final int createdAt;
+  final int updatedAt;
+  final String deviceId;
+  final bool isDeleted;
+  final String unitId;
+
+  /// أقل كمية تبدأ عندها الفئة (بوحدات الألف).
+  final int minQtyMilli;
+
+  /// سعر الوحدة عند الفئة دي.
+  final int unitPrice;
+  final String? label;
+  const PriceTier(
+      {required this.id,
+      required this.createdAt,
+      required this.updatedAt,
+      required this.deviceId,
+      required this.isDeleted,
+      required this.unitId,
+      required this.minQtyMilli,
+      required this.unitPrice,
+      this.label});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['created_at'] = Variable<int>(createdAt);
+    map['updated_at'] = Variable<int>(updatedAt);
+    map['device_id'] = Variable<String>(deviceId);
+    map['is_deleted'] = Variable<bool>(isDeleted);
+    map['unit_id'] = Variable<String>(unitId);
+    map['min_qty_milli'] = Variable<int>(minQtyMilli);
+    map['unit_price'] = Variable<int>(unitPrice);
+    if (!nullToAbsent || label != null) {
+      map['label'] = Variable<String>(label);
+    }
+    return map;
+  }
+
+  PriceTiersCompanion toCompanion(bool nullToAbsent) {
+    return PriceTiersCompanion(
+      id: Value(id),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+      deviceId: Value(deviceId),
+      isDeleted: Value(isDeleted),
+      unitId: Value(unitId),
+      minQtyMilli: Value(minQtyMilli),
+      unitPrice: Value(unitPrice),
+      label:
+          label == null && nullToAbsent ? const Value.absent() : Value(label),
+    );
+  }
+
+  factory PriceTier.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return PriceTier(
+      id: serializer.fromJson<String>(json['id']),
+      createdAt: serializer.fromJson<int>(json['createdAt']),
+      updatedAt: serializer.fromJson<int>(json['updatedAt']),
+      deviceId: serializer.fromJson<String>(json['deviceId']),
+      isDeleted: serializer.fromJson<bool>(json['isDeleted']),
+      unitId: serializer.fromJson<String>(json['unitId']),
+      minQtyMilli: serializer.fromJson<int>(json['minQtyMilli']),
+      unitPrice: serializer.fromJson<int>(json['unitPrice']),
+      label: serializer.fromJson<String?>(json['label']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'createdAt': serializer.toJson<int>(createdAt),
+      'updatedAt': serializer.toJson<int>(updatedAt),
+      'deviceId': serializer.toJson<String>(deviceId),
+      'isDeleted': serializer.toJson<bool>(isDeleted),
+      'unitId': serializer.toJson<String>(unitId),
+      'minQtyMilli': serializer.toJson<int>(minQtyMilli),
+      'unitPrice': serializer.toJson<int>(unitPrice),
+      'label': serializer.toJson<String?>(label),
+    };
+  }
+
+  PriceTier copyWith(
+          {String? id,
+          int? createdAt,
+          int? updatedAt,
+          String? deviceId,
+          bool? isDeleted,
+          String? unitId,
+          int? minQtyMilli,
+          int? unitPrice,
+          Value<String?> label = const Value.absent()}) =>
+      PriceTier(
+        id: id ?? this.id,
+        createdAt: createdAt ?? this.createdAt,
+        updatedAt: updatedAt ?? this.updatedAt,
+        deviceId: deviceId ?? this.deviceId,
+        isDeleted: isDeleted ?? this.isDeleted,
+        unitId: unitId ?? this.unitId,
+        minQtyMilli: minQtyMilli ?? this.minQtyMilli,
+        unitPrice: unitPrice ?? this.unitPrice,
+        label: label.present ? label.value : this.label,
+      );
+  PriceTier copyWithCompanion(PriceTiersCompanion data) {
+    return PriceTier(
+      id: data.id.present ? data.id.value : this.id,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      deviceId: data.deviceId.present ? data.deviceId.value : this.deviceId,
+      isDeleted: data.isDeleted.present ? data.isDeleted.value : this.isDeleted,
+      unitId: data.unitId.present ? data.unitId.value : this.unitId,
+      minQtyMilli:
+          data.minQtyMilli.present ? data.minQtyMilli.value : this.minQtyMilli,
+      unitPrice: data.unitPrice.present ? data.unitPrice.value : this.unitPrice,
+      label: data.label.present ? data.label.value : this.label,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PriceTier(')
+          ..write('id: $id, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deviceId: $deviceId, ')
+          ..write('isDeleted: $isDeleted, ')
+          ..write('unitId: $unitId, ')
+          ..write('minQtyMilli: $minQtyMilli, ')
+          ..write('unitPrice: $unitPrice, ')
+          ..write('label: $label')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, createdAt, updatedAt, deviceId, isDeleted,
+      unitId, minQtyMilli, unitPrice, label);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is PriceTier &&
+          other.id == this.id &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt &&
+          other.deviceId == this.deviceId &&
+          other.isDeleted == this.isDeleted &&
+          other.unitId == this.unitId &&
+          other.minQtyMilli == this.minQtyMilli &&
+          other.unitPrice == this.unitPrice &&
+          other.label == this.label);
+}
+
+class PriceTiersCompanion extends UpdateCompanion<PriceTier> {
+  final Value<String> id;
+  final Value<int> createdAt;
+  final Value<int> updatedAt;
+  final Value<String> deviceId;
+  final Value<bool> isDeleted;
+  final Value<String> unitId;
+  final Value<int> minQtyMilli;
+  final Value<int> unitPrice;
+  final Value<String?> label;
+  final Value<int> rowid;
+  const PriceTiersCompanion({
+    this.id = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.deviceId = const Value.absent(),
+    this.isDeleted = const Value.absent(),
+    this.unitId = const Value.absent(),
+    this.minQtyMilli = const Value.absent(),
+    this.unitPrice = const Value.absent(),
+    this.label = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  PriceTiersCompanion.insert({
+    this.id = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.deviceId = const Value.absent(),
+    this.isDeleted = const Value.absent(),
+    required String unitId,
+    required int minQtyMilli,
+    required int unitPrice,
+    this.label = const Value.absent(),
+    this.rowid = const Value.absent(),
+  })  : unitId = Value(unitId),
+        minQtyMilli = Value(minQtyMilli),
+        unitPrice = Value(unitPrice);
+  static Insertable<PriceTier> custom({
+    Expression<String>? id,
+    Expression<int>? createdAt,
+    Expression<int>? updatedAt,
+    Expression<String>? deviceId,
+    Expression<bool>? isDeleted,
+    Expression<String>? unitId,
+    Expression<int>? minQtyMilli,
+    Expression<int>? unitPrice,
+    Expression<String>? label,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (deviceId != null) 'device_id': deviceId,
+      if (isDeleted != null) 'is_deleted': isDeleted,
+      if (unitId != null) 'unit_id': unitId,
+      if (minQtyMilli != null) 'min_qty_milli': minQtyMilli,
+      if (unitPrice != null) 'unit_price': unitPrice,
+      if (label != null) 'label': label,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  PriceTiersCompanion copyWith(
+      {Value<String>? id,
+      Value<int>? createdAt,
+      Value<int>? updatedAt,
+      Value<String>? deviceId,
+      Value<bool>? isDeleted,
+      Value<String>? unitId,
+      Value<int>? minQtyMilli,
+      Value<int>? unitPrice,
+      Value<String?>? label,
+      Value<int>? rowid}) {
+    return PriceTiersCompanion(
+      id: id ?? this.id,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      deviceId: deviceId ?? this.deviceId,
+      isDeleted: isDeleted ?? this.isDeleted,
+      unitId: unitId ?? this.unitId,
+      minQtyMilli: minQtyMilli ?? this.minQtyMilli,
+      unitPrice: unitPrice ?? this.unitPrice,
+      label: label ?? this.label,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<int>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<int>(updatedAt.value);
+    }
+    if (deviceId.present) {
+      map['device_id'] = Variable<String>(deviceId.value);
+    }
+    if (isDeleted.present) {
+      map['is_deleted'] = Variable<bool>(isDeleted.value);
+    }
+    if (unitId.present) {
+      map['unit_id'] = Variable<String>(unitId.value);
+    }
+    if (minQtyMilli.present) {
+      map['min_qty_milli'] = Variable<int>(minQtyMilli.value);
+    }
+    if (unitPrice.present) {
+      map['unit_price'] = Variable<int>(unitPrice.value);
+    }
+    if (label.present) {
+      map['label'] = Variable<String>(label.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PriceTiersCompanion(')
+          ..write('id: $id, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deviceId: $deviceId, ')
+          ..write('isDeleted: $isDeleted, ')
+          ..write('unitId: $unitId, ')
+          ..write('minQtyMilli: $minQtyMilli, ')
+          ..write('unitPrice: $unitPrice, ')
+          ..write('label: $label, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -10226,6 +10695,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $SaleReturnsTable saleReturns = $SaleReturnsTable(this);
   late final $ShiftsTable shifts = $ShiftsTable(this);
   late final $SalePaymentsTable salePayments = $SalePaymentsTable(this);
+  late final $PriceTiersTable priceTiers = $PriceTiersTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -10250,7 +10720,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         auditLogs,
         saleReturns,
         shifts,
-        salePayments
+        salePayments,
+        priceTiers
       ];
 }
 
@@ -15144,6 +15615,231 @@ typedef $$SalePaymentsTableProcessedTableManager = ProcessedTableManager<
     ),
     SalePayment,
     PrefetchHooks Function()>;
+typedef $$PriceTiersTableCreateCompanionBuilder = PriceTiersCompanion Function({
+  Value<String> id,
+  Value<int> createdAt,
+  Value<int> updatedAt,
+  Value<String> deviceId,
+  Value<bool> isDeleted,
+  required String unitId,
+  required int minQtyMilli,
+  required int unitPrice,
+  Value<String?> label,
+  Value<int> rowid,
+});
+typedef $$PriceTiersTableUpdateCompanionBuilder = PriceTiersCompanion Function({
+  Value<String> id,
+  Value<int> createdAt,
+  Value<int> updatedAt,
+  Value<String> deviceId,
+  Value<bool> isDeleted,
+  Value<String> unitId,
+  Value<int> minQtyMilli,
+  Value<int> unitPrice,
+  Value<String?> label,
+  Value<int> rowid,
+});
+
+class $$PriceTiersTableFilterComposer
+    extends Composer<_$AppDatabase, $PriceTiersTable> {
+  $$PriceTiersTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get deviceId => $composableBuilder(
+      column: $table.deviceId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get isDeleted => $composableBuilder(
+      column: $table.isDeleted, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get unitId => $composableBuilder(
+      column: $table.unitId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get minQtyMilli => $composableBuilder(
+      column: $table.minQtyMilli, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get unitPrice => $composableBuilder(
+      column: $table.unitPrice, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get label => $composableBuilder(
+      column: $table.label, builder: (column) => ColumnFilters(column));
+}
+
+class $$PriceTiersTableOrderingComposer
+    extends Composer<_$AppDatabase, $PriceTiersTable> {
+  $$PriceTiersTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get updatedAt => $composableBuilder(
+      column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get deviceId => $composableBuilder(
+      column: $table.deviceId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<bool> get isDeleted => $composableBuilder(
+      column: $table.isDeleted, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get unitId => $composableBuilder(
+      column: $table.unitId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get minQtyMilli => $composableBuilder(
+      column: $table.minQtyMilli, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get unitPrice => $composableBuilder(
+      column: $table.unitPrice, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get label => $composableBuilder(
+      column: $table.label, builder: (column) => ColumnOrderings(column));
+}
+
+class $$PriceTiersTableAnnotationComposer
+    extends Composer<_$AppDatabase, $PriceTiersTable> {
+  $$PriceTiersTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<int> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<int> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<String> get deviceId =>
+      $composableBuilder(column: $table.deviceId, builder: (column) => column);
+
+  GeneratedColumn<bool> get isDeleted =>
+      $composableBuilder(column: $table.isDeleted, builder: (column) => column);
+
+  GeneratedColumn<String> get unitId =>
+      $composableBuilder(column: $table.unitId, builder: (column) => column);
+
+  GeneratedColumn<int> get minQtyMilli => $composableBuilder(
+      column: $table.minQtyMilli, builder: (column) => column);
+
+  GeneratedColumn<int> get unitPrice =>
+      $composableBuilder(column: $table.unitPrice, builder: (column) => column);
+
+  GeneratedColumn<String> get label =>
+      $composableBuilder(column: $table.label, builder: (column) => column);
+}
+
+class $$PriceTiersTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $PriceTiersTable,
+    PriceTier,
+    $$PriceTiersTableFilterComposer,
+    $$PriceTiersTableOrderingComposer,
+    $$PriceTiersTableAnnotationComposer,
+    $$PriceTiersTableCreateCompanionBuilder,
+    $$PriceTiersTableUpdateCompanionBuilder,
+    (PriceTier, BaseReferences<_$AppDatabase, $PriceTiersTable, PriceTier>),
+    PriceTier,
+    PrefetchHooks Function()> {
+  $$PriceTiersTableTableManager(_$AppDatabase db, $PriceTiersTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$PriceTiersTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$PriceTiersTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$PriceTiersTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> id = const Value.absent(),
+            Value<int> createdAt = const Value.absent(),
+            Value<int> updatedAt = const Value.absent(),
+            Value<String> deviceId = const Value.absent(),
+            Value<bool> isDeleted = const Value.absent(),
+            Value<String> unitId = const Value.absent(),
+            Value<int> minQtyMilli = const Value.absent(),
+            Value<int> unitPrice = const Value.absent(),
+            Value<String?> label = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              PriceTiersCompanion(
+            id: id,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            deviceId: deviceId,
+            isDeleted: isDeleted,
+            unitId: unitId,
+            minQtyMilli: minQtyMilli,
+            unitPrice: unitPrice,
+            label: label,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            Value<String> id = const Value.absent(),
+            Value<int> createdAt = const Value.absent(),
+            Value<int> updatedAt = const Value.absent(),
+            Value<String> deviceId = const Value.absent(),
+            Value<bool> isDeleted = const Value.absent(),
+            required String unitId,
+            required int minQtyMilli,
+            required int unitPrice,
+            Value<String?> label = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              PriceTiersCompanion.insert(
+            id: id,
+            createdAt: createdAt,
+            updatedAt: updatedAt,
+            deviceId: deviceId,
+            isDeleted: isDeleted,
+            unitId: unitId,
+            minQtyMilli: minQtyMilli,
+            unitPrice: unitPrice,
+            label: label,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$PriceTiersTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $PriceTiersTable,
+    PriceTier,
+    $$PriceTiersTableFilterComposer,
+    $$PriceTiersTableOrderingComposer,
+    $$PriceTiersTableAnnotationComposer,
+    $$PriceTiersTableCreateCompanionBuilder,
+    $$PriceTiersTableUpdateCompanionBuilder,
+    (PriceTier, BaseReferences<_$AppDatabase, $PriceTiersTable, PriceTier>),
+    PriceTier,
+    PrefetchHooks Function()>;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -15188,4 +15884,6 @@ class $AppDatabaseManager {
       $$ShiftsTableTableManager(_db, _db.shifts);
   $$SalePaymentsTableTableManager get salePayments =>
       $$SalePaymentsTableTableManager(_db, _db.salePayments);
+  $$PriceTiersTableTableManager get priceTiers =>
+      $$PriceTiersTableTableManager(_db, _db.priceTiers);
 }
