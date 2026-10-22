@@ -25,6 +25,7 @@ Future<void> main() async {
   kCurrency = await db.getSetting('currency') ?? kCurrency;
   kVatRate = int.tryParse(await db.getSetting('vat_rate') ?? '') ?? 0;
   kVatInclusive = (await db.getSetting('vat_inclusive') ?? '0') == '1';
+  kBusinessType = await db.getSetting('business_type') ?? 'general';
   final lockMinutes = int.tryParse(await db.getSetting('lock_minutes') ?? '') ?? 10;
   // الجهاز الرئيسي (ديسك توب) يشغّل سيرفر المزامنة المحلي تلقائيًا.
   SyncServer? server;

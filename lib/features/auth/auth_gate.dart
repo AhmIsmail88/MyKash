@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/format.dart';
 import '../../core/theme.dart';
+import '../../data/database.dart';
 import '../../data/providers.dart';
 import '../../sync/sync_providers.dart';
 import '../sync/pairing_form.dart';
@@ -58,6 +59,7 @@ class _SetupViewState extends ConsumerState<SetupView> {
   final _name = TextEditingController();
   final _pin = TextEditingController();
   final _pin2 = TextEditingController();
+  String _business = 'general';
   String? _error;
   bool _busy = false;
   bool _pairMode = false;
@@ -84,6 +86,8 @@ class _SetupViewState extends ConsumerState<SetupView> {
     final db = ref.read(databaseProvider);
     final shop = _shop.text.trim().isEmpty ? 'محلي' : _shop.text.trim();
     await db.setSetting('shop_name', shop);
+    await db.setSetting('business_type', _business);
+    kBusinessType = _business;
     final user = await db.createUser(name: name, role: 'admin', pin: pin);
     ref.read(sessionProvider.notifier).login(user);
     ref.invalidate(hasUsersProvider);
@@ -129,6 +133,16 @@ class _SetupViewState extends ConsumerState<SetupView> {
               const SizedBox(height: 4),
               const Text('إعداد أول مرة: أنشئ حساب المدير'),
               const SizedBox(height: 20),
+              DropdownButtonFormField<String>(
+                value: _business,
+                decoration: const InputDecoration(labelText: 'نشاط المحل'),
+                items: [
+                  for (final e in kBusinessTypes.entries)
+                    DropdownMenuItem(value: e.key, child: Text(e.value)),
+                ],
+                onChanged: (v) => setState(() => _business = v ?? 'general'),
+              ),
+              const SizedBox(height: 12),
               TextField(
                   controller: _shop,
                   decoration: const InputDecoration(labelText: 'اسم المحل')),

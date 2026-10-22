@@ -20,6 +20,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   final _maxDiscount = TextEditingController();
   bool _allowVoid = true;
   bool _vatInclusive = false;
+  String _business = 'general';
   final _phone = TextEditingController();
   final _address = TextEditingController();
   final _footer = TextEditingController();
@@ -45,6 +46,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     _vatRate.text = await db0.getSetting('vat_rate') ?? '';
     _vatInclusive = (await db0.getSetting('vat_inclusive') ?? '0') == '1';
     _maxDiscount.text = await db0.getSetting('max_discount_percent') ?? '';
+    _business = await db0.getSetting('business_type') ?? 'general';
     _allowVoid = (await db0.getSetting('allow_void') ?? '1') == '1';
     _lock = ref.read(lockMinutesProvider);
     if (mounted) setState(() => _loaded = true);
@@ -72,6 +74,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final cap = int.tryParse(latinDigits(_maxDiscount.text.trim())) ?? 0;
     await db.setSetting('max_discount_percent', '${cap.clamp(0, 100)}');
     await db.setSetting('allow_void', _allowVoid ? '1' : '0');
+    await db.setSetting('business_type', _business);
+    kBusinessType = _business;
     kCurrency = cur;
     ref.read(lockMinutesProvider.notifier).state = _lock;
     await db.logAudit('settings_changed', userId: ref.read(sessionProvider)?.id);
@@ -206,6 +210,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         TextField(
             controller: _currency,
             decoration: const InputDecoration(labelText: 'رمز العملة (مثل ج.م)')),
+        const SizedBox(height: 10),
+        DropdownButtonFormField<String>(
+          value: _business,
+          decoration: const InputDecoration(labelText: 'نشاط المحل'),
+          items: [
+            for (final e in kBusinessTypes.entries)
+              DropdownMenuItem(value: e.key, child: Text(e.value)),
+          ],
+          onChanged: (v) => setState(() => _business = v ?? 'general'),
+        ),
         const SizedBox(height: 10),
         TextField(
             controller: _vatRate,

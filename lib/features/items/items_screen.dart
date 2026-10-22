@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/format.dart';
+import '../../data/database.dart';
 import '../../data/providers.dart';
 import '../auth/session.dart';
 import '../labels/labels_page.dart';
@@ -97,7 +98,7 @@ class ItemsScreen extends ConsumerWidget {
 
   Future<void> _addDialog(BuildContext context, WidgetRef ref) async {
     final name = TextEditingController();
-    final unit = TextEditingController(text: 'قطعة');
+    final unit = TextEditingController(text: businessDefaultUnit());
     final price = TextEditingController();
     final cost = TextEditingController();
     final barcode = TextEditingController();

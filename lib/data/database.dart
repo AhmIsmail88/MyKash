@@ -17,6 +17,30 @@ int nowMs() => DateTime.now().millisecondsSinceEpoch;
 /// معلومات الجهاز الحالي (تُضبط عند بدء التطبيق).
 /// إعدادات الضريبة المحمّلة عند بدء التشغيل (زي kCurrency).
 /// الواجهة بتقرأهم بشكل متزامن عشان الأرقام تطلع مطابقة للمخزّن.
+/// نشاط المحل. بيحدد الافتراضيات (وحدة الصنف الآن، وميزات لاحقًا).
+String kBusinessType = 'general';
+
+const Map<String, String> kBusinessTypes = <String, String>{
+  'general': 'عام',
+  'grocery': 'بقالة',
+  'feed': 'أعلاف وكيماويات',
+  'restaurant': 'مطعم',
+};
+
+/// وحدة القياس الافتراضية الصنف حسب النشاط.
+String businessDefaultUnit() {
+  switch (kBusinessType) {
+    case 'feed':
+      return 'شيكارة';
+    case 'restaurant':
+      return 'طبق';
+    case 'grocery':
+      return 'قطعة';
+    default:
+      return 'حبة';
+  }
+}
+
 int kVatRate = 0;
 bool kVatInclusive = false;
 
