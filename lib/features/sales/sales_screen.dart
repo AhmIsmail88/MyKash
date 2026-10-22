@@ -258,7 +258,7 @@ class _CartPanelState extends ConsumerState<CartPanel> {
   int _discountValue(int subtotal) =>
       parseMoney(_discount.text).clamp(0, subtotal).toInt();
 
-  Future<void> _checkout() async {
+  Future<void> _checkout({List<SalePaymentInput>? splits}) async {
     final lines = ref.read(cartProvider);
     if (lines.isEmpty) return;
     final subtotal = cartTotal(lines);
@@ -315,6 +315,7 @@ class _CartPanelState extends ConsumerState<CartPanel> {
               ),
           ],
           credit: _credit,
+          paymentSplits: splits,
           customerId: _credit ? _customerId : null,
           discount: discount,
           paidNow: paidNow,
@@ -359,6 +360,79 @@ class _CartPanelState extends ConsumerState<CartPanel> {
     if (ok == true) {
       ref.read(cartProvider.notifier).setQty(l.key, parseQty(c.text));
     }
+  }
+
+  /// حوار الدفع المقسّم: كاش + كارت لازم يساووا الإجمالي.
+  Future<List<SalePaymentInput>?> _askSplit(int total) async {
+    final cash = TextEditingController();
+    final card = TextEditingController();
+    final result = await showDialog<List<SalePaymentInput>>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setLocal) {
+          final c = parseMoney(cash.text);
+          final k = parseMoney(card.text);
+          final remaining = total - c - k;
+          return AlertDialog(
+            title: Text('دفع مقسّم — ${formatMoney(total)}'),
+            content: Column(mainAxisSize: MainAxisSize.min, children: [
+              TextField(
+                controller: cash,
+                autofocus: true,
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
+                decoration: const InputDecoration(labelText: 'كاش'),
+                onChanged: (_) => setLocal(() {}),
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: card,
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
+                decoration: const InputDecoration(labelText: 'كارت / محفظة'),
+                onChanged: (_) => setLocal(() {}),
+              ),
+              const SizedBox(height: 12),
+              Row(children: [
+                const Text('المتبقي'),
+                const Spacer(),
+                Text(formatMoney(remaining < 0 ? 0 : remaining),
+                    style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        color: remaining == 0
+                            ? const Color(0xFF0B6B57)
+                            : const Color(0xFFA23B2A))),
+              ]),
+              if (remaining != 0)
+                const Padding(
+                  padding: EdgeInsets.only(top: 6),
+                  child: Text('لازم مجموع الدفعتين يساوي الإجمالي',
+                      style:
+                          TextStyle(fontSize: 12, color: Color(0xFFA23B2A))),
+                ),
+            ]),
+            actions: [
+              TextButton(
+                  onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
+              FilledButton(
+                onPressed: remaining != 0
+                    ? null
+                    : () => Navigator.pop(ctx, <SalePaymentInput>[
+                          if (c > 0)
+                            SalePaymentInput(method: 'cash', amount: c),
+                          if (k > 0)
+                            SalePaymentInput(method: 'card', amount: k),
+                        ]),
+                child: const Text('تأكيد'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+    cash.dispose();
+    card.dispose();
+    return result;
   }
 
   Future<void> _quickAddCustomer() async {
@@ -560,6 +634,21 @@ class _CartPanelState extends ConsumerState<CartPanel> {
                   labelText: 'المدفوع الآن (اختياري)', isDense: true),
             ),
           ],
+          if (!_credit && lines.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () async {
+                  final s = await _askSplit(total);
+                  if (s == null) return;
+                  await _checkout(splits: s);
+                },
+                icon: const Icon(Icons.call_split),
+                label: const Text('دفع مقسّم (كاش + كارت)'),
+              ),
+            ),
+          ],
           const SizedBox(height: 12),
           SizedBox(
             width: double.infinity,
@@ -569,7 +658,7 @@ class _CartPanelState extends ConsumerState<CartPanel> {
                 backgroundColor: Theme.of(context).colorScheme.secondary,
                 foregroundColor: Theme.of(context).colorScheme.onSecondary,
               ),
-              onPressed: lines.isEmpty ? null : _checkout,
+              onPressed: lines.isEmpty ? null : () => _checkout(),
               child: const Text('إتمام البيع',
                   style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
             ),
