@@ -218,7 +218,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             for (final e in kBusinessTypes.entries)
               DropdownMenuItem(value: e.key, child: Text(e.value)),
           ],
-          onChanged: (v) => setState(() => _business = v ?? 'general'),
+          onChanged: (v) async {
+            final value = v ?? 'general';
+            setState(() => _business = value);
+            // بنحفظ فورًا عشان الاختيار ميتوهش لو المستخدم مقفلش بالإعدادات.
+            await ref
+                .read(databaseProvider)
+                .setSetting('business_type', value);
+            kBusinessType = value;
+          },
         ),
         const SizedBox(height: 10),
         TextField(
