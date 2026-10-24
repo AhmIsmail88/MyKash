@@ -255,6 +255,14 @@ Widget _unitTile(
           },
         ),
         IconButton(
+          tooltip: 'أسعار متدرجة',
+          icon: const Icon(Icons.trending_down),
+          onPressed: () async {
+            await _editTiers(ctx, db, u, snack);
+            refresh();
+          },
+        ),
+        IconButton(
           tooltip: 'وحدة البيع الافتراضية',
           icon: Icon(u.isDefault ? Icons.star : Icons.star_border,
               color: u.isDefault ? const Color(0xFFF2A71B) : null),
@@ -297,4 +305,102 @@ Widget _unitTile(
         ),
       ),
   ]);
+}
+/// محرّر الأسعار المتدرجة لوحدة: كل صف = أقل كمية + سعر الوحدة عندها.
+Future<void> _editTiers(
+  BuildContext ctx,
+  AppDatabase db,
+  ItemUnit u,
+  void Function(String) snack,
+) async {
+  final existing = await db.tiersForUnit(u.id);
+  final rows = <({TextEditingController minQty, TextEditingController price})>[
+    for (final r in existing)
+      (
+        minQty: TextEditingController(text: formatQty(r.minQtyMilli)),
+        price: TextEditingController(text: moneyInput(r.unitPrice)),
+      ),
+  ];
+
+  if (!ctx.mounted) return;
+  final ok = await showDialog<bool>(
+    context: ctx,
+    builder: (c) => StatefulBuilder(
+      builder: (c, setLocal) => AlertDialog(
+        title: Text('أسعار متدرجة — ${u.name}'),
+        content: SizedBox(
+          width: 460,
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            const Text(
+                'كل صف: أقل كمية يبدأ عندها السعر الجديد. الكميات الأقل من أول حد بتفضل على سعر الوحدة.',
+                style: TextStyle(fontSize: 12, color: Colors.black54)),
+            const SizedBox(height: 10),
+            Flexible(
+              child: SingleChildScrollView(
+                child: Column(children: [
+                  for (var i = 0; i < rows.length; i++)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: Row(children: [
+                        Expanded(
+                          child: TextField(
+                            controller: rows[i].minQty,
+                            keyboardType: const TextInputType.numberWithOptions(
+                                decimal: true),
+                            decoration:
+                                const InputDecoration(labelText: 'من كمية', isDense: true),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: TextField(
+                            controller: rows[i].price,
+                            keyboardType: const TextInputType.numberWithOptions(
+                                decimal: true),
+                            decoration: const InputDecoration(
+                                labelText: 'سعر الوحدة', isDense: true),
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close, size: 18),
+                          onPressed: () => setLocal(() => rows.removeAt(i)),
+                        ),
+                      ]),
+                    ),
+                ]),
+              ),
+            ),
+            TextButton.icon(
+              onPressed: () => setLocal(() => rows.add((
+                    minQty: TextEditingController(),
+                    price: TextEditingController(),
+                  ))),
+              icon: const Icon(Icons.add, size: 18),
+              label: const Text('إضافة فئة'),
+            ),
+          ]),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(c, false),
+              child: const Text('إلغاء')),
+          FilledButton(
+              onPressed: () => Navigator.pop(c, true),
+              child: const Text('حفظ')),
+        ],
+      ),
+    ),
+  );
+
+  if (ok == true) {
+    await db.saveTiersForUnit(u.id, [
+      for (final r in rows)
+        if (parseQty(r.minQty.text) > 0 && parseMoney(r.price.text) > 0)
+          PriceTierInput(
+            minQtyMilli: parseQty(r.minQty.text),
+            unitPrice: parseMoney(r.price.text),
+          ),
+    ]);
+    snack('تم حفظ الأسعار المتدرجة');
+  }
 }

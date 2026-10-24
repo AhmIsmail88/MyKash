@@ -28,12 +28,16 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
   }
 
   Future<void> _addItem(ItemRow it) async {
-    final unit = await ref.read(databaseProvider).defaultUnit(it.id);
+    final db = ref.read(databaseProvider);
+    final unit = await db.defaultUnit(it.id);
+    final tier = await db.priceForUnit(unit.id, 1000);
+    if (!mounted) return;
     ref.read(cartProvider.notifier).add(CartLine.of(
           itemId: it.id,
           name: it.name,
           baseCost: it.costPrice,
           unit: unit,
+          unitPrice: tier,
         ));
   }
 
@@ -41,11 +45,13 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
   Future<String?> _handleCode(String code) async {
     final m = await ref.read(databaseProvider).matchBarcode(code);
     if (m == null) return 'غير موجود: $code';
+    final tier = await ref.read(databaseProvider).priceForUnit(m.unit.id, 1000);
     ref.read(cartProvider.notifier).add(CartLine.of(
           itemId: m.item.id,
           name: m.item.name,
           baseCost: m.item.costPrice,
           unit: m.unit,
+          unitPrice: tier,
         ));
     return 'أُضيف: ${m.item.name} (${m.unit.name})';
   }
@@ -358,7 +364,20 @@ class _CartPanelState extends ConsumerState<CartPanel> {
       ),
     );
     if (ok == true) {
-      ref.read(cartProvider.notifier).setQty(l.key, parseQty(c.text));
+      final qty = parseQty(c.text);
+      ref.read(cartProvider.notifier).setQty(l.key, qty);
+      if (qty > 0) {
+        // التسعير المتدرج بيتطبّق على الكمية الجديدة.
+        final db = ref.read(databaseProvider);
+        final tier = await db.priceForUnit(l.unitId, qty);
+        final units = await db.unitsOf(l.itemId);
+        final matches = units.where((u) => u.id == l.unitId).toList();
+        final base = matches.isEmpty ? null : matches.first.salePrice;
+        final price = tier ?? base;
+        if (price != null) {
+          ref.read(cartProvider.notifier).setPrice(l.key, price);
+        }
+      }
     }
   }
 

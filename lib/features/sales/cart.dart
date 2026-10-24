@@ -25,6 +25,7 @@ class CartLine {
     required int baseCost,
     required ItemUnit unit,
     int qtyMilli = 1000,
+    int? unitPrice,
   }) =>
       CartLine(
         itemId: itemId,
@@ -32,7 +33,7 @@ class CartLine {
         unitName: unit.name,
         name: name,
         factorMilli: unit.factorMilli,
-        unitPrice: unit.salePrice,
+        unitPrice: unitPrice ?? unit.salePrice,
         baseCost: baseCost,
         qtyMilli: qtyMilli,
       );
@@ -42,6 +43,18 @@ class CartLine {
   /// تكلفة الوحدة = تكلفة الوحدة الأساسية × عامل التحويل.
   int get unitCost => (baseCost * factorMilli / 1000).round();
   int get total => (unitPrice * qtyMilli / 1000).round();
+
+  /// نسخة بسعر وحدة مختلف (يستخدمها التسعير المتدرج).
+  CartLine withPrice(int price) => CartLine(
+        itemId: itemId,
+        unitId: unitId,
+        unitName: unitName,
+        name: name,
+        factorMilli: factorMilli,
+        unitPrice: price,
+        baseCost: baseCost,
+        qtyMilli: qtyMilli,
+      );
 
   CartLine withQty(int q) => CartLine(
         itemId: itemId,
@@ -77,6 +90,13 @@ class CartNotifier extends Notifier<List<CartLine>> {
           if (l.qtyMilli + deltaMilli > 0) l.withQty(l.qtyMilli + deltaMilli) else ...[]
         else
           l,
+    ];
+  }
+
+  /// يحدّث سعر الوحدة لسطر موجود (تسعير متدرج حسب الكمية).
+  void setPrice(String key, int unitPrice) {
+    state = [
+      for (final l in state) l.key == key ? l.withPrice(unitPrice) : l,
     ];
   }
 
