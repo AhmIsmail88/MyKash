@@ -21,8 +21,14 @@ class AuthGate extends ConsumerWidget {
       ExcludeFocus(excluding: locked, child: child),
       if (locked)
         Positioned.fill(
-          child: Overlay(
-            initialEntries: [OverlayEntry(builder: (_) => const _GateView())],
+          // MaterialApp.builder بيقع فوق الـ Navigator الأصلي، فأي قائمة
+          // اختيار أو حوار جوه البوابة مش هيفتح. Navigator خاص بيحل ده.
+          child: HeroControllerScope.none(
+            child: Navigator(
+              onGenerateRoute: (_) => MaterialPageRoute<void>(
+                builder: (_) => const _GateView(),
+              ),
+            ),
           ),
         ),
     ]);

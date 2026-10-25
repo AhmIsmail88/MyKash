@@ -7,25 +7,31 @@ import 'package:mykash/data/providers.dart';
 import 'package:mykash/features/auth/auth_gate.dart';
 
 void main() {
-  testWidgets('the business dropdown opens and keeps the chosen value',
+  /// Mirrors the real mounting: AuthGate sits in `MaterialApp.builder`, i.e.
+  /// ABOVE the navigator. This is what used to break the dropdown menu.
+  testWidgets('setup dropdown works when the gate is mounted in builder',
       (tester) async {
     final db = AppDatabase.forTesting(NativeDatabase.memory());
     await db.initDevice(isMobile: false);
 
     await tester.pumpWidget(ProviderScope(
       overrides: [databaseProvider.overrideWithValue(db)],
-      child: const MaterialApp(home: Scaffold(body: SetupView())),
+      child: MaterialApp(
+        builder: (context, child) =>
+            AuthGate(child: child ?? const SizedBox.shrink()),
+        home: const Scaffold(body: Text('app')),
+      ),
     ));
     await tester.pumpAndSettle();
 
-    // The control starts on the generic profile.
-    expect(find.text('عام'), findsOneWidget);
+    expect(find.text('عام'), findsOneWidget,
+        reason: 'the setup screen should be visible');
 
     await tester.tap(find.text('عام'));
     await tester.pumpAndSettle();
 
     final feed = find.text('أعلاف وكيماويات');
-    expect(feed, findsWidgets, reason: 'menu did not open');
+    expect(feed, findsWidgets, reason: 'dropdown menu did not open');
 
     await tester.tap(feed.last);
     await tester.pumpAndSettle();
