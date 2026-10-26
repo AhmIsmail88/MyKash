@@ -61,3 +61,4 @@ android/key.properties
 android/build/
 /dist_new/
 /dist_*/
+/out_*/
