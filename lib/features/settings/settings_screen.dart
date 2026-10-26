@@ -21,6 +21,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   bool _allowVoid = true;
   bool _vatInclusive = false;
   String _business = 'general';
+  final _scalePrefix = TextEditingController(text: '2');
+  String _scaleMode = 'weight';
   final _phone = TextEditingController();
   final _address = TextEditingController();
   final _footer = TextEditingController();
@@ -47,6 +49,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     _vatInclusive = (await db0.getSetting('vat_inclusive') ?? '0') == '1';
     _maxDiscount.text = await db0.getSetting('max_discount_percent') ?? '';
     _business = await db0.getSetting('business_type') ?? 'general';
+    _scalePrefix.text = await db0.getSetting('scale_prefix') ?? '2';
+    _scaleMode = await db0.getSetting('scale_mode') ?? 'weight';
     _allowVoid = (await db0.getSetting('allow_void') ?? '1') == '1';
     _lock = ref.read(lockMinutesProvider);
     if (mounted) setState(() => _loaded = true);
@@ -75,10 +79,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     await db.setSetting('max_discount_percent', '${cap.clamp(0, 100)}');
     await db.setSetting('allow_void', _allowVoid ? '1' : '0');
     await db.setSetting('business_type', _business);
+    await db.setSetting('scale_prefix', _scalePrefix.text.trim());
+    await db.setSetting('scale_mode', _scaleMode);
     kBusinessType = _business;
     kCurrency = cur;
     ref.read(lockMinutesProvider.notifier).state = _lock;
-    await db.logAudit('settings_changed', userId: ref.read(sessionProvider)?.id);
+    await db.logAudit('settings_changed',
+        userId: ref.read(sessionProvider)?.id);
     if (mounted) _snack('تم حفظ الإعدادات');
   }
 
@@ -114,7 +121,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   keyboardType: TextInputType.number,
                   maxLength: 6,
                   decoration: const InputDecoration(
-                      labelText: 'الرمز السري (4 إلى 6 أرقام)', counterText: '')),
+                      labelText: 'الرمز السري (4 إلى 6 أرقام)',
+                      counterText: '')),
             ]),
           ),
           actions: [
@@ -209,7 +217,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         const SizedBox(height: 10),
         TextField(
             controller: _currency,
-            decoration: const InputDecoration(labelText: 'رمز العملة (مثل ج.م)')),
+            decoration:
+                const InputDecoration(labelText: 'رمز العملة (مثل ج.م)')),
         const SizedBox(height: 10),
         DropdownButtonFormField<String>(
           value: _business,
@@ -222,9 +231,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             final value = v ?? 'general';
             setState(() => _business = value);
             // بنحفظ فورًا عشان الاختيار ميتوهش لو المستخدم مقفلش بالإعدادات.
-            await ref
-                .read(databaseProvider)
-                .setSetting('business_type', value);
+            await ref.read(databaseProvider).setSetting('business_type', value);
             kBusinessType = value;
           },
         ),
@@ -239,6 +246,21 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           title: const Text('الأسعار شاملة الضريبة'),
           value: _vatInclusive,
           onChanged: (v) => setState(() => _vatInclusive = v),
+        ),
+        TextField(
+            controller: _scalePrefix,
+            keyboardType: TextInputType.number,
+            decoration: const InputDecoration(
+                labelText: 'بادئة باركود الميزان (افتراضي 2)')),
+        const SizedBox(height: 10),
+        DropdownButtonFormField<String>(
+          value: _scaleMode,
+          decoration: const InputDecoration(labelText: 'باركود الميزان يحمل'),
+          items: const [
+            DropdownMenuItem(value: 'weight', child: Text('الوزن (جرام)')),
+            DropdownMenuItem(value: 'price', child: Text('السعر')),
+          ],
+          onChanged: (v) => setState(() => _scaleMode = v ?? 'weight'),
         ),
         TextField(
             controller: _maxDiscount,
@@ -274,8 +296,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           decoration: const InputDecoration(labelText: 'مقاس الفاتورة'),
           items: const [
             DropdownMenuItem(value: 'a4', child: Text('A4')),
-            DropdownMenuItem(value: 'thermal80', child: Text('إيصال حراري 80 مم')),
-            DropdownMenuItem(value: 'thermal58', child: Text('إيصال حراري 58 مم')),
+            DropdownMenuItem(
+                value: 'thermal80', child: Text('إيصال حراري 80 مم')),
+            DropdownMenuItem(
+                value: 'thermal58', child: Text('إيصال حراري 58 مم')),
           ],
           onChanged: (v) => setState(() => _format = v ?? 'a4'),
         ),
@@ -291,7 +315,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         const SizedBox(height: 10),
         DropdownButtonFormField<int>(
           value: _lock,
-          decoration: const InputDecoration(labelText: 'القفل التلقائي بعد الخمول'),
+          decoration:
+              const InputDecoration(labelText: 'القفل التلقائي بعد الخمول'),
           items: const [
             DropdownMenuItem(value: 0, child: Text('بدون قفل')),
             DropdownMenuItem(value: 5, child: Text('5 دقائق')),

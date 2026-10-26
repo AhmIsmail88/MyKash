@@ -43,7 +43,23 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
 
   /// يضيف للسلة بحسب الباركود ويعيد رسالة للعرض (null = غير موجود).
   Future<String?> _handleCode(String code) async {
-    final m = await ref.read(databaseProvider).matchBarcode(code);
+    final db = ref.read(databaseProvider);
+
+    // باركود الميزان أولاً: بيحمل الوزن أو السعر داخل الكود.
+    final scale = await db.matchScaleBarcode(code);
+    if (scale != null) {
+      ref.read(cartProvider.notifier).add(CartLine.of(
+            itemId: scale.match.item.id,
+            name: scale.match.item.name,
+            baseCost: scale.match.item.costPrice,
+            unit: scale.match.unit,
+            qtyMilli: scale.qtyMilli,
+            unitPrice: scale.priceOverride,
+          ));
+      return 'ميزان: ${scale.match.item.name}';
+    }
+
+    final m = await db.matchBarcode(code);
     if (m == null) return 'غير موجود: $code';
     final tier = await ref.read(databaseProvider).priceForUnit(m.unit.id, 1000);
     ref.read(cartProvider.notifier).add(CartLine.of(
@@ -164,7 +180,8 @@ class _Results extends ConsumerWidget {
   final String query;
   final bool grid;
   final void Function(ItemRow) onTap;
-  const _Results({required this.query, required this.grid, required this.onTap});
+  const _Results(
+      {required this.query, required this.grid, required this.onTap});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -215,7 +232,8 @@ class _Results extends ConsumerWidget {
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(fontWeight: FontWeight.w600)),
                       const Spacer(),
-                      Text('${formatMoney(it.defUnitPrice)} / ${it.defUnitName}',
+                      Text(
+                          '${formatMoney(it.defUnitPrice)} / ${it.defUnitName}',
                           style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w800,
@@ -269,9 +287,9 @@ class _CartPanelState extends ConsumerState<CartPanel> {
     if (lines.isEmpty) return;
     final subtotal = cartTotal(lines);
     final discount = _discountValue(subtotal);
-    final total = computeVat(subtotal - discount, kVatRate,
-            inclusive: kVatInclusive)
-        .total;
+    final total =
+        computeVat(subtotal - discount, kVatRate, inclusive: kVatInclusive)
+            .total;
 
     if (_credit && _customerId == null) {
       _snack('اختر العميل للبيع الآجل');
@@ -309,24 +327,24 @@ class _CartPanelState extends ConsumerState<CartPanel> {
 
     final db = ref.read(databaseProvider);
     final res = await db.completeSale(
-          lines: [
-            for (final l in lines)
-              SaleLineInput(
-                itemId: l.itemId,
-                unitId: l.unitId,
-                qtyMilli: l.qtyMilli,
-                unitPrice: l.unitPrice,
-                unitCost: l.unitCost,
-                factorMilli: l.factorMilli,
-              ),
-          ],
-          credit: _credit,
-          paymentSplits: splits,
-          customerId: _credit ? _customerId : null,
-          discount: discount,
-          paidNow: paidNow,
-          userId: ref.read(sessionProvider)?.id,
-        );
+      lines: [
+        for (final l in lines)
+          SaleLineInput(
+            itemId: l.itemId,
+            unitId: l.unitId,
+            qtyMilli: l.qtyMilli,
+            unitPrice: l.unitPrice,
+            unitCost: l.unitCost,
+            factorMilli: l.factorMilli,
+          ),
+      ],
+      credit: _credit,
+      paymentSplits: splits,
+      customerId: _credit ? _customerId : null,
+      discount: discount,
+      paidNow: paidNow,
+      userId: ref.read(sessionProvider)?.id,
+    );
     ref.read(cartProvider.notifier).clear();
     _discount.clear();
     _paid.clear();
@@ -426,13 +444,13 @@ class _CartPanelState extends ConsumerState<CartPanel> {
                 const Padding(
                   padding: EdgeInsets.only(top: 6),
                   child: Text('لازم مجموع الدفعتين يساوي الإجمالي',
-                      style:
-                          TextStyle(fontSize: 12, color: Color(0xFFA23B2A))),
+                      style: TextStyle(fontSize: 12, color: Color(0xFFA23B2A))),
                 ),
             ]),
             actions: [
               TextButton(
-                  onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('إلغاء')),
               FilledButton(
                 onPressed: remaining != 0
                     ? null
@@ -483,8 +501,9 @@ class _CartPanelState extends ConsumerState<CartPanel> {
       ),
     );
     if (ok == true && name.text.trim().isNotEmpty) {
-      final id = await ref.read(databaseProvider).addCustomer(
-          name: name.text.trim(), phone: phone.text.trim());
+      final id = await ref
+          .read(databaseProvider)
+          .addCustomer(name: name.text.trim(), phone: phone.text.trim());
       if (mounted) setState(() => _customerId = id);
     }
   }
@@ -544,9 +563,9 @@ class _CartPanelState extends ConsumerState<CartPanel> {
     final held = ref.watch(heldCartsProvider);
     final subtotal = cartTotal(lines);
     final discount = _discountValue(subtotal);
-    final total = computeVat(subtotal - discount, kVatRate,
-            inclusive: kVatInclusive)
-        .total;
+    final total =
+        computeVat(subtotal - discount, kVatRate, inclusive: kVatInclusive)
+            .total;
     return Column(children: [
       Expanded(
         child: lines.isEmpty
@@ -595,8 +614,7 @@ class _CartPanelState extends ConsumerState<CartPanel> {
                 keyboardType:
                     const TextInputType.numberWithOptions(decimal: true),
                 onChanged: (_) => setState(() {}),
-                decoration: const InputDecoration(
-                    isDense: true, hintText: '0'),
+                decoration: const InputDecoration(isDense: true, hintText: '0'),
               ),
             ),
           ]),
@@ -604,7 +622,8 @@ class _CartPanelState extends ConsumerState<CartPanel> {
           Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
             const Text('الإجمالي'),
             Text(formatMoney(total),
-                style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w800)),
+                style:
+                    const TextStyle(fontSize: 28, fontWeight: FontWeight.w800)),
           ]),
           const SizedBox(height: 6),
           SizedBox(
@@ -622,8 +641,9 @@ class _CartPanelState extends ConsumerState<CartPanel> {
             const SizedBox(height: 10),
             Consumer(builder: (context, ref, _) {
               final customers = ref.watch(customersProvider).valueOrNull ?? [];
-              final selected =
-                  customers.any((c) => c.id == _customerId) ? _customerId : null;
+              final selected = customers.any((c) => c.id == _customerId)
+                  ? _customerId
+                  : null;
               return Row(children: [
                 Expanded(
                   child: DropdownButtonFormField<String>(
@@ -648,7 +668,8 @@ class _CartPanelState extends ConsumerState<CartPanel> {
             const SizedBox(height: 10),
             TextField(
               controller: _paid,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
               decoration: const InputDecoration(
                   labelText: 'المدفوع الآن (اختياري)', isDense: true),
             ),
@@ -696,7 +717,8 @@ class _CartLineTile extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final cart = ref.read(cartProvider.notifier);
-    final units = ref.watch(itemUnitsProvider(line.itemId)).valueOrNull ?? const [];
+    final units =
+        ref.watch(itemUnitsProvider(line.itemId)).valueOrNull ?? const [];
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Column(children: [
@@ -726,8 +748,7 @@ class _CartLineTile extends ConsumerWidget {
               ),
             )
           else
-            Text(line.unitName,
-                style: const TextStyle(color: Colors.black54)),
+            Text(line.unitName, style: const TextStyle(color: Colors.black54)),
           const SizedBox(width: 8),
           Text(formatMoney(line.unitPrice),
               style: const TextStyle(fontSize: 12, color: Colors.black54)),

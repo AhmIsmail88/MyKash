@@ -59,6 +59,44 @@ class ExpiringItem {
   int daysLeft([int? at]) => daysUntil(expiryDate, at ?? nowMs());
 }
 
+/// نتيجة قراءة باركود ميزان.
+class ScaleScan {
+  final ItemMatch match;
+  final int qtyMilli;
+
+  /// لما الباركود يحمل السعر بدل الوزن، بنثبّت السعر ده على السطر.
+  final int? priceOverride;
+  const ScaleScan({
+    required this.match,
+    required this.qtyMilli,
+    this.priceOverride,
+  });
+}
+
+/// يفك باركود الميزان: بادئة + كود الصنف + القيمة + رقم تحقق.
+///
+/// الشكل الشائع EAN-13: [بادئة 1][كود 5][قيمة 6][تحقق 1].
+/// بيرجّع null لو الكود مش بالشكل ده، عشان يكمّل كباركود عادي.
+({String plu, int value})? parseScaleCode(
+  String code, {
+  String prefix = '2',
+  int pluDigits = 5,
+}) {
+  final digits = code.trim();
+  if (digits.length != 13) return null;
+  if (prefix.isEmpty || !digits.startsWith(prefix)) return null;
+  for (final ch in digits.codeUnits) {
+    if (ch < 48 || ch > 57) return null; // كل الأرقام لازم تكون لاتينية
+  }
+  final valueStart = prefix.length + pluDigits;
+  const valueEnd = 12; // آخر رقم = تحقق
+  if (valueStart >= valueEnd) return null;
+  final plu = digits.substring(prefix.length, valueStart);
+  final value = int.tryParse(digits.substring(valueStart, valueEnd));
+  if (value == null) return null;
+  return (plu: plu, value: value);
+}
+
 int kVatRate = 0;
 bool kVatInclusive = false;
 
@@ -1177,6 +1215,25 @@ ORDER BY s.sold_at DESC
   // ---------- تنبيهات الصلاحية ----------
 
   /// الأصناف اللي قربت تنتهي (أو انتهت) ومخزونها لسه موجود.
+  /// بيفك الكود كباركود ميزان. بيرجّع null لو مش باركود ميزان.
+  Future<ScaleScan?> matchScaleBarcode(String code) async {
+    final prefix = await getSetting('scale_prefix') ?? '2';
+    if (prefix.isEmpty) return null;
+    final parsed = parseScaleCode(code, prefix: prefix);
+    if (parsed == null || parsed.value <= 0) return null;
+
+    final match = await matchBarcode(parsed.plu);
+    if (match == null) return null;
+
+    final mode = await getSetting('scale_mode') ?? 'weight';
+    if (mode == 'price') {
+      return ScaleScan(
+          match: match, qtyMilli: 1000, priceOverride: parsed.value);
+    }
+    // الوزن بالجرام = أجزاء الألف من الكيلو.
+    return ScaleScan(match: match, qtyMilli: parsed.value);
+  }
+
   Future<List<ExpiringItem>> expiringItems({int withinDays = 30}) async {
     final limit = nowMs() + withinDays * 86400000;
     final rows = await customSelect(
