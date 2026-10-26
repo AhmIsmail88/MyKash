@@ -19,6 +19,7 @@ import 'features/reports/reports_screen.dart';
 import 'features/suppliers/suppliers_screen.dart';
 import 'features/sync/sync_screen.dart';
 import 'features/invoices/invoices_screen.dart';
+import 'features/expiry/expiry_screen.dart';
 import 'features/items/items_screen.dart';
 import 'features/sales/sales_screen.dart';
 import 'features/settings/settings_screen.dart';
@@ -35,13 +36,16 @@ final GoRouter _router = GoRouter(
         GoRoute(path: '/home', builder: (_, __) => const HomeScreen()),
         GoRoute(path: '/sales', builder: (_, __) => const SalesScreen()),
         GoRoute(path: '/items', builder: (_, __) => const ItemsScreen()),
-        GoRoute(path: '/customers', builder: (_, __) => const CustomersScreen()),
+        GoRoute(
+            path: '/customers', builder: (_, __) => const CustomersScreen()),
         GoRoute(path: '/invoices', builder: (_, __) => const InvoicesScreen()),
         GoRoute(path: '/settings', builder: (_, __) => const SettingsScreen()),
-        GoRoute(path: '/suppliers', builder: (_, __) => const SuppliersScreen()),
+        GoRoute(
+            path: '/suppliers', builder: (_, __) => const SuppliersScreen()),
         GoRoute(path: '/payments', builder: (_, __) => const PaymentsScreen()),
         GoRoute(path: '/reports', builder: (_, __) => const ReportsScreen()),
         GoRoute(path: '/shift', builder: (_, __) => const ShiftScreen()),
+        GoRoute(path: '/expiry', builder: (_, __) => const ExpiryScreen()),
         GoRoute(path: '/count', builder: (_, __) => const CountScreen()),
         GoRoute(path: '/backup', builder: (_, __) => const BackupScreen()),
         GoRoute(path: '/sync', builder: (_, __) => const SyncScreen()),
@@ -67,8 +71,7 @@ class MyKashApp extends StatelessWidget {
         GlobalCupertinoLocalizations.delegate,
       ],
       routerConfig: _router,
-      builder: (context, child) =>
-          IdleLock(
+      builder: (context, child) => IdleLock(
         child: AuthGate(
           child: LicenseGate(child: child ?? const SizedBox.shrink()),
         ),

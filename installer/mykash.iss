@@ -5,7 +5,7 @@
 ; غيّر AppId إلى GUID جديد خاص بك (Tools > Generate GUID) مرة واحدة ولا تغيّره بعدها.
 
 #define MyAppName "MyKash"
-#define MyAppVersion "0.7.1"
+#define MyAppVersion "0.8.0"
 #define MyAppPublisher "MyKash"
 #define MyAppExeName "mykash.exe"
 #define BuildDir "..\build\windows\x64\runner\Release"

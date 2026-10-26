@@ -33,9 +33,11 @@ class ItemsScreen extends ConsumerWidget {
             child: Align(
               alignment: AlignmentDirectional.centerStart,
               child: OutlinedButton.icon(
-                onPressed: () => Navigator.of(context, rootNavigator: true).push(
+                onPressed: () =>
+                    Navigator.of(context, rootNavigator: true).push(
                   MaterialPageRoute(
-                      fullscreenDialog: true, builder: (_) => const LabelsPage()),
+                      fullscreenDialog: true,
+                      builder: (_) => const LabelsPage()),
                 ),
                 icon: const Icon(Icons.qr_code_2),
                 label: const Text('طباعة ملصقات باركود'),
@@ -62,7 +64,9 @@ class ItemsScreen extends ConsumerWidget {
                   final low = it.stockMilli <= 0;
                   return Card(
                     child: ListTile(
-                      onTap: isAdmin ? () => showItemEditor(context, ref, it) : null,
+                      onTap: isAdmin
+                          ? () => showItemEditor(context, ref, it)
+                          : null,
                       title: Text(it.name,
                           style: const TextStyle(fontWeight: FontWeight.w600)),
                       subtitle: Text(isAdmin
@@ -90,8 +94,9 @@ class ItemsScreen extends ConsumerWidget {
         padding: const EdgeInsets.only(bottom: 10),
         child: TextField(
           controller: c,
-          keyboardType:
-              number ? const TextInputType.numberWithOptions(decimal: true) : null,
+          keyboardType: number
+              ? const TextInputType.numberWithOptions(decimal: true)
+              : null,
           decoration: InputDecoration(labelText: label),
         ),
       );
@@ -103,6 +108,7 @@ class ItemsScreen extends ConsumerWidget {
     final cost = TextEditingController();
     final barcode = TextEditingController();
     final qty = TextEditingController();
+    final expiry = TextEditingController();
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -117,7 +123,33 @@ class ItemsScreen extends ConsumerWidget {
               _field(cost, 'تكلفة الوحدة الأساسية (اختياري)', number: true),
               scanField(ctx, barcode, 'الباركود (اختياري)'),
               _field(qty, 'الكمية الافتتاحية (اختياري)', number: true),
-              const Text('يمكن إضافة وحدات أخرى (كيس، طن...) بعد الحفظ من تعديل الصنف.',
+              TextField(
+                controller: expiry,
+                readOnly: true,
+                decoration: InputDecoration(
+                  labelText: 'تاريخ الصلاحية (اختياري)',
+                  suffixIcon: IconButton(
+                    icon: const Icon(Icons.event, size: 18),
+                    onPressed: () async {
+                      final now = DateTime.now();
+                      final picked = await showDatePicker(
+                        context: ctx,
+                        initialDate: now,
+                        firstDate: now,
+                        lastDate: now.add(const Duration(days: 3650)),
+                      );
+                      if (picked != null) {
+                        final m = picked.month.toString().padLeft(2, '0');
+                        final d = picked.day.toString().padLeft(2, '0');
+                        expiry.text = '${picked.year}-$m-$d';
+                      }
+                    },
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                  'يمكن إضافة وحدات أخرى (كيس، طن...) بعد الحفظ من تعديل الصنف.',
                   style: TextStyle(fontSize: 12, color: Colors.black54)),
             ]),
           ),
@@ -132,8 +164,12 @@ class ItemsScreen extends ConsumerWidget {
         ],
       ),
     );
-    if (ok == true && name.text.trim().isNotEmpty && parseMoney(price.text) > 0) {
+    if (ok == true &&
+        name.text.trim().isNotEmpty &&
+        parseMoney(price.text) > 0) {
       try {
+        final expiryMs =
+            DateTime.tryParse(expiry.text.trim())?.millisecondsSinceEpoch;
         await ref.read(databaseProvider).addItem(
               name: name.text.trim(),
               salePrice: parseMoney(price.text),
@@ -141,11 +177,12 @@ class ItemsScreen extends ConsumerWidget {
               barcode: barcode.text,
               openingQtyMilli: parseQty(qty.text),
               unitName: unit.text,
+              expiryDate: expiryMs,
             );
       } catch (e) {
         if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-              content: Text(e is StateError ? e.message : '$e')));
+          ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(e is StateError ? e.message : '$e')));
         }
       }
     }

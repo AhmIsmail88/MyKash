@@ -41,6 +41,24 @@ String businessDefaultUnit() {
   }
 }
 
+/// عدد الأيام المتبقية حتى تاريخ الانتهاء (سالب = منتهي بالفعل).
+int daysUntil(int expiryMs, int nowValue) =>
+    ((expiryMs - nowValue) / 86400000).ceil();
+
+/// صنف قارب على الانتهاء ومخزونه لسه موجود.
+class ExpiringItem {
+  final String itemId, name;
+  final int expiryDate, stockMilli;
+  const ExpiringItem({
+    required this.itemId,
+    required this.name,
+    required this.expiryDate,
+    required this.stockMilli,
+  });
+
+  int daysLeft([int? at]) => daysUntil(expiryDate, at ?? nowMs());
+}
+
 int kVatRate = 0;
 bool kVatInclusive = false;
 
@@ -694,6 +712,7 @@ LIMIT 300
     int costPrice = 0,
     String? barcode,
     int openingQtyMilli = 0,
+    int? expiryDate,
     String unitName = 'قطعة',
   }) {
     return transaction(() async {
@@ -726,7 +745,12 @@ LIMIT 300
           itemId: id,
           qtyMilli: openingQtyMilli,
           reason: 'opening',
+          expiryDate: Value(expiryDate),
         ));
+        if (expiryDate != null) {
+          await (update(items)..where((t) => t.id.equals(id)))
+              .write(const ItemsCompanion(trackExpiry: Value(true)));
+        }
       }
     });
   }
@@ -1148,6 +1172,43 @@ ORDER BY s.sold_at DESC
           .toList(),
       qtyMilli,
     );
+  }
+
+  // ---------- تنبيهات الصلاحية ----------
+
+  /// الأصناف اللي قربت تنتهي (أو انتهت) ومخزونها لسه موجود.
+  Future<List<ExpiringItem>> expiringItems({int withinDays = 30}) async {
+    final limit = nowMs() + withinDays * 86400000;
+    final rows = await customSelect(
+      '''
+SELECT s.item_id AS item_id, i.name AS name, MIN(s.expiry_date) AS expiry_date
+FROM stock_movements s
+JOIN items i ON i.id = s.item_id
+WHERE s.expiry_date IS NOT NULL
+  AND s.qty_milli > 0
+  AND s.is_deleted = 0
+  AND i.is_deleted = 0
+GROUP BY s.item_id
+HAVING MIN(s.expiry_date) <= ?1
+ORDER BY MIN(s.expiry_date) ASC
+      ''',
+      variables: [Variable.withInt(limit)],
+      readsFrom: {stockMovements, items},
+    ).get();
+
+    final out = <ExpiringItem>[];
+    for (final r in rows) {
+      final itemId = r.read<String>('item_id');
+      final stock = await stockOf(itemId);
+      if (stock <= 0) continue;
+      out.add(ExpiringItem(
+        itemId: itemId,
+        name: r.read<String>('name'),
+        expiryDate: r.read<int>('expiry_date'),
+        stockMilli: stock,
+      ));
+    }
+    return out;
   }
 
   Future<List<SaleDetailLine>> saleLinesFor(String saleId) async {

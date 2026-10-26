@@ -22,9 +22,11 @@ const _destinations = <_Dest>[
   _Dest('/items', 'الأصناف والمخزون', Icons.inventory_2_outlined),
   _Dest('/customers', 'العملاء', Icons.people_outline),
   _Dest('/count', 'الجرد', Icons.fact_check_outlined, adminOnly: true),
+  _Dest('/expiry', 'الصلاحية', Icons.event_busy_outlined),
   _Dest('/suppliers', 'الموردون والتوريد', Icons.local_shipping_outlined,
       adminOnly: true),
-  _Dest('/payments', 'التحصيل والمديونيات', Icons.account_balance_wallet_outlined),
+  _Dest('/payments', 'التحصيل والمديونيات',
+      Icons.account_balance_wallet_outlined),
   _Dest('/invoices', 'الفواتير', Icons.receipt_long_outlined),
   _Dest('/reports', 'التقارير', Icons.bar_chart, adminOnly: true),
   _Dest('/sync', 'المزامنة', Icons.sync),
@@ -130,7 +132,8 @@ class AppShell extends ConsumerWidget {
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 2),
               child: ListTile(
-                leading: Icon(d.icon, color: current.path == d.path ? Colors.white : fg),
+                leading: Icon(d.icon,
+                    color: current.path == d.path ? Colors.white : fg),
                 title: Text(d.title,
                     style: TextStyle(
                         color: current.path == d.path ? Colors.white : fg,
@@ -163,7 +166,8 @@ class AppShell extends ConsumerWidget {
                   const SizedBox(height: 20),
                   const _BrandHeader(light: true),
                   Expanded(
-                      child: Builder(builder: (ctx) => navList(ctx, dark: true))),
+                      child:
+                          Builder(builder: (ctx) => navList(ctx, dark: true))),
                 ],
               ),
             ),
@@ -181,7 +185,8 @@ class AppShell extends ConsumerWidget {
               padding: EdgeInsets.fromLTRB(16, 16, 16, 4),
               child: _BrandHeader(light: false),
             ),
-            Expanded(child: Builder(builder: (ctx) => navList(ctx, dark: false))),
+            Expanded(
+                child: Builder(builder: (ctx) => navList(ctx, dark: false))),
           ]),
         ),
       ),
@@ -200,7 +205,8 @@ class _BrandHeader extends StatelessWidget {
     return Row(mainAxisSize: MainAxisSize.min, children: [
       ClipRRect(
         borderRadius: BorderRadius.circular(10),
-        child: Image.asset('assets/branding/icon_full.png', width: 38, height: 38),
+        child:
+            Image.asset('assets/branding/icon_full.png', width: 38, height: 38),
       ),
       const SizedBox(width: 10),
       Text('MyKash',
@@ -211,6 +217,7 @@ class _BrandHeader extends StatelessWidget {
     ]);
   }
 }
+
 class _ShiftChip extends ConsumerWidget {
   const _ShiftChip();
 
